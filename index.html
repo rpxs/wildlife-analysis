@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>bcycle</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      #app { width: 100%; height: 100%; }
+      .hud {
+        position: fixed; left: 12px; bottom: 12px; color: rgba(255,255,255,0.75);
+        font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        user-select: none; pointer-events: none;
+      }
+      .mode-label { color: #4da8ff; }
+      .ui-btn {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 10;
+        border: 1px solid rgba(255,255,255,0.28);
+        background: rgba(0,0,0,0.55);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        cursor: pointer;
+      }
+      .ui-btn:hover { background: rgba(255,255,255,0.12); }
+      .ui-btn:active { transform: translateY(1px); }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <button id="direction-toggle" class="ui-btn" type="button">
+      Direction: CW
+    </button>
+    <div class="hud">space | H: color mode | J: trees | B: 3d to 2d | V: cinema | G: music | mode: <span id="color-mode-label" class="mode-label">infection</span></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

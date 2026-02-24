@@ -38,6 +38,9 @@ const analysisState = {
   was1336InRange: false,
   prevDominantHz: NaN,
   was47InRange: false,
+  prevMiddlePeakHz: NaN,
+  middlePeakBottomHits: 0,
+  centerLoudnessDisplay: null,
 };
 const ANALYSIS_BANDS = [
   { key: "sub", label: "sub", low: 20, high: 60 },
@@ -61,12 +64,6 @@ const CAMERA_PRESETS = [
   {
     name: "outer-middle",
     position: [29, 0.8, 0],
-    target: [0, 0, 0],
-    duration: 1.45,
-  },
-  {
-    name: "diag-medium",
-    position: [18, 12, 18],
     target: [0, 0, 0],
     duration: 1.45,
   },
@@ -262,14 +259,21 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.code === "KeyB") {
-    if (birdSystem && birdSystem.toggle2DMode) {
-      birdSystem.toggle2DMode();
+    if (birdSystem && birdSystem.toggleScatterFlight) {
+      birdSystem.toggleScatterFlight();
     }
     return;
   }
 
   if (event.code === "KeyV") {
     cycleCameraRigPreset();
+    return;
+  }
+
+  if (event.code === "KeyK") {
+    if (birdSystem && typeof birdSystem.cycleRouteShape === "function") {
+      birdSystem.cycleRouteShape();
+    }
   }
 });
 
@@ -287,6 +291,13 @@ const CFG = {
   yawMax: Math.PI / 12, // 15 degrees
   yawSpeedMin: 2.0,
   yawSpeedMax: 3.4,
+  birdFacingMaxOffCameraYaw: Math.PI / 4, // keep sprites readable (no edge-on thinness)
+  birdSideFlipResponse: 7.0,
+  birdSideFlipDeadzone: 0.06,
+  birdTopViewPitchBlendStart: 12,
+  birdTopViewPitchBlendEnd: 34,
+  birdTopViewPitchStrength: 0.9,
+  birdTopViewPitchMax: Math.PI / 3,
   facingFlipDuration: 0.32,
   rmsRotateTrigger: 0.4,
   rmsRotateMax: 0.75,
@@ -296,6 +307,26 @@ const CFG = {
   crestYRotateMax: 4.0,
   crestYRotateMaxAngle: Math.PI / 40, // ~4.5 degrees
   crestYRotateResponse: 6.5,
+  middlePeakYRotateStep: Math.PI / 48, // 3.75 degrees per 270Hz trigger
+  middlePeakYRotateMax: Math.PI / 16, // cap added wobble to ~11.25 degrees
+  middlePeakYRotateResponse: 8.5,
+  middlePeakYRotateDecay: 3.6,
+  shapeTransitionSpeedFactor: 2.0,
+  shapeInnerFraction: 0.36,
+  shapeInnerRadiusFactor: 0.45,
+  shapeInnerHeightFactor: 0.8,
+  shapeInnerAngularRate: 1.0,
+  shapeMobiusRadiusFactor: 0.74,
+  shapeMobiusHalfWidth: 2.5,
+  shapeMobiusFlutterMix: 0.24,
+  shapeMobiusAngularRate: 1.0,
+  routeMorphResponse: 2.8,
+  scatterSpeedMin: 6.2,
+  scatterSpeedMax: 10.8,
+  scatterAccel: 0.0,
+  scatterReturnSpeedMin: 16.0,
+  scatterReturnSpeedMax: 28.0,
+  scatterReturnSnapDistance: 0.08,
   lineBackOffsetFactor: 0.0,
   lineBackOffsetMin: 0.0,
   lineColor: 0xffffff,
@@ -309,6 +340,7 @@ const CFG = {
   subColorTriggerThreshold: 0.04,
   perBirdColorTriggerHz: 47,
   perBirdColorTriggerToleranceHz: 4,
+  middlePeakBottomTriggerHz: 270,
   bird2DTransitionDuration: 0.9,
   bird2DReturn2DDuration: 0.7,
   bird2DReturn3DDuration: 0.9,
@@ -700,7 +732,6 @@ function makeInstancedBillboards({ texture, rects, count }) {
   lines.frustumCulled = false;
 
   const uvTransform = new Float32Array(count * 4);
-  const anchorOffset = new Float32Array(count * 2);
   const scales = new Float32Array(count);
   const rots = new Float32Array(count);
   const yawAmp = new Float32Array(count);
@@ -716,6 +747,13 @@ function makeInstancedBillboards({ texture, rects, count }) {
   const ringX = new Float32Array(count);
   const ringY = new Float32Array(count);
   const ringZ = new Float32Array(count);
+  const routeFollowX = new Float32Array(count);
+  const routeFollowY = new Float32Array(count);
+  const routeFollowZ = new Float32Array(count);
+  const innerRingMask = new Uint8Array(count);
+  const mobiusLane = new Float32Array(count);
+  const faceDirX = new Float32Array(count);
+  const faceDirZ = new Float32Array(count);
   const posX = new Float32Array(count);
   const posY = new Float32Array(count);
   const posZ = new Float32Array(count);
@@ -730,6 +768,9 @@ function makeInstancedBillboards({ texture, rects, count }) {
   const screenNowY = new Float32Array(count);
   const screenVelX = new Float32Array(count);
   const screenVelY = new Float32Array(count);
+  const scatterVelX = new Float32Array(count);
+  const scatterVelY = new Float32Array(count);
+  const scatterVelZ = new Float32Array(count);
   const flyOriginX = new Float32Array(count);
   const flyOriginY = new Float32Array(count);
   const tmpWorld = new THREE.Vector3();
@@ -738,6 +779,17 @@ function makeInstancedBillboards({ texture, rects, count }) {
   let visualScale = 1;
   let audioRotAmount = 0;
   let crestYRotAmount = 0;
+  let middlePeakYRotAmount = 0;
+  let middlePeakYRotTarget = 0;
+  let middlePeakYRotDir = 1;
+  const SHAPE_MODES = ["cylinder", "double-cylinder", "mobius", "cube"];
+  const shapeState = {
+    index: 0,
+  };
+  const routeState = {
+    current: 0, // 0 = cylinder, 1 = cube-like square route
+    target: 0,
+  };
   const facingFlipState = {
     current: 1,
     from: 1,
@@ -746,7 +798,7 @@ function makeInstancedBillboards({ texture, rects, count }) {
     active: false,
   };
   const transformState = {
-    mode: "world3d", // world3d | to2d | fly2d | return2d | to3d
+    mode: "world3d", // world3d | to2d | fly2d | return2d | to3d | scatter3d | return3d
     timer: 0,
     reverseFly: false,
   };
@@ -756,8 +808,11 @@ function makeInstancedBillboards({ texture, rects, count }) {
     hue: Math.random(),
     infectedCount: 0,
   };
+  const routePointA = { x: 0, y: 0, z: 0 };
+  const routePointB = { x: 0, y: 0, z: 0 };
 
   const dummy = new THREE.Object3D();
+  dummy.rotation.order = "YXZ";
   for (let i = 0; i < count; i++) {
     const idx = (Math.random() * rects.length) | 0;
     const rect = rects[idx];
@@ -766,11 +821,9 @@ function makeInstancedBillboards({ texture, rects, count }) {
     uvTransform[i * 4 + 1] = rect.v0;
     uvTransform[i * 4 + 2] = rect.us;
     uvTransform[i * 4 + 3] = rect.vs;
-    anchorOffset[i * 2 + 0] = rect.anchorX || 0;
-    anchorOffset[i * 2 + 1] = rect.anchorY || 0;
 
     scales[i] = lerp(CFG.spriteSizeMin, CFG.spriteSizeMax, Math.random());
-    rots[i] = 0;
+    rots[i] = 1;
     yawAmp[i] = lerp(CFG.yawMin, CFG.yawMax, Math.random());
     yawPhase[i] = Math.random() * Math.PI * 2;
     yawSpeed[i] = lerp(CFG.yawSpeedMin, CFG.yawSpeedMax, Math.random());
@@ -785,6 +838,8 @@ function makeInstancedBillboards({ texture, rects, count }) {
 
     y0[i] = (Math.random() - 0.5) * CFG.height;
     flutterPhase[i] = Math.random() * Math.PI * 2;
+    innerRingMask[i] = Math.random() < CFG.shapeInnerFraction ? 1 : 0;
+    mobiusLane[i] = Math.random() * 2 - 1;
   }
 
   const mat = new THREE.ShaderMaterial({
@@ -812,7 +867,6 @@ function makeInstancedBillboards({ texture, rects, count }) {
       uniform float uCrestYRot;
 
       attribute vec4 aUvTransform;
-      attribute vec2 aAnchorOffset;
       attribute float aScale;
       attribute float aRot;
       attribute float aYawAmp;
@@ -828,14 +882,12 @@ function makeInstancedBillboards({ texture, rects, count }) {
         vUv = uv * aUvTransform.zw + aUvTransform.xy;
         vTint = aTint;
 
-        vec3 centerVS = (modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
         vec2 local = position.xy * aScale * uGlobalScale;
-        local -= aAnchorOffset * aScale * uGlobalScale;
-        local.x *= uFacingFlip;
+        local.x *= (uFacingFlip * clamp(aRot, -1.0, 1.0));
 
         float sway = sin(uTime * aYawSpeed + aYawPhase) * aYawAmp;
         float audioSpin = sin(uTime * 7.5 + aYawPhase * 1.31) * uAudioRot;
-        float angle = aRot + sway + audioSpin;
+        float angle = sway + audioSpin;
         float c = cos(angle);
         float s = sin(angle);
         local = mat2(c, -s, s, c) * local;
@@ -850,8 +902,8 @@ function makeInstancedBillboards({ texture, rects, count }) {
           -local3.x * sy + local3.z * cy
         );
 
-        vec3 posVS = centerVS + local3;
-        gl_Position = projectionMatrix * vec4(posVS, 1.0);
+        vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(local3, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
       }
     `,
     fragmentShader: /* glsl */ `
@@ -883,12 +935,9 @@ function makeInstancedBillboards({ texture, rects, count }) {
     "aUvTransform",
     new THREE.InstancedBufferAttribute(uvTransform, 4),
   );
-  geom.setAttribute(
-    "aAnchorOffset",
-    new THREE.InstancedBufferAttribute(anchorOffset, 2),
-  );
   geom.setAttribute("aScale", new THREE.InstancedBufferAttribute(scales, 1));
-  geom.setAttribute("aRot", new THREE.InstancedBufferAttribute(rots, 1));
+  const rotAttr = new THREE.InstancedBufferAttribute(rots, 1);
+  geom.setAttribute("aRot", rotAttr);
   geom.setAttribute("aYawAmp", new THREE.InstancedBufferAttribute(yawAmp, 1));
   geom.setAttribute(
     "aYawPhase",
@@ -903,18 +952,40 @@ function makeInstancedBillboards({ texture, rects, count }) {
   geom.setAttribute("aTint", tintAttr);
 
   for (let i = 0; i < count; i++) {
-    const x = Math.cos(theta[i]) * CFG.radius;
-    const z = Math.sin(theta[i]) * CFG.radius;
+    getRouteXZ(theta[i], routeState.current, routePointA);
+    const x = routePointA.x;
+    const z = routePointA.z;
     const y = y0[i];
+    getRouteXZ(theta[i] + 0.01, routeState.current, routePointB);
+    let dirX = routePointB.x - routePointA.x;
+    let dirZ = routePointB.z - routePointA.z;
+    const dirLen = Math.hypot(dirX, dirZ);
+    if (dirLen > 1e-5) {
+      dirX /= dirLen;
+      dirZ /= dirLen;
+    } else {
+      dirX = -Math.sin(theta[i]) * travelDirection;
+      dirZ = Math.cos(theta[i]) * travelDirection;
+    }
 
     ringX[i] = x;
     ringY[i] = y;
     ringZ[i] = z;
+    routeFollowX[i] = x;
+    routeFollowY[i] = y;
+    routeFollowZ[i] = z;
+    faceDirX[i] = dirX;
+    faceDirZ[i] = dirZ;
     posX[i] = x;
     posY[i] = y;
     posZ[i] = z;
 
     dummy.position.set(x, y, z);
+    dummy.rotation.set(
+      0,
+      Math.atan2(faceDirX[i], faceDirZ[i]),
+      0,
+    );
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
   }
@@ -944,20 +1015,82 @@ function makeInstancedBillboards({ texture, rects, count }) {
       }
     }
     mat.uniforms.uFacingFlip.value = facingFlipState.current;
+    routeState.target = shapeState.index === 3 ? 1 : 0;
+    const routeAlpha =
+      1 - Math.exp(-CFG.routeMorphResponse * Math.max(0, dt));
+    routeState.current += (routeState.target - routeState.current) * routeAlpha;
+    if (Math.abs(routeState.target - routeState.current) < 1e-4) {
+      routeState.current = routeState.target;
+    }
+    if (transformState.mode !== "scatter3d") {
+      const shapeMode = SHAPE_MODES[shapeState.index] || SHAPE_MODES[0];
+      for (let i = 0; i < count; i++) {
+        theta[i] += speed[i] * dt * travelDirection;
+        const tangentStep = 0.01 * travelDirection;
+        getShapePoint(i, theta[i], t, shapeMode, routePointA);
+        getShapePoint(i, theta[i] + tangentStep, t, shapeMode, routePointB);
 
-    for (let i = 0; i < count; i++) {
-      theta[i] += speed[i] * dt * travelDirection;
-      const x = Math.cos(theta[i]) * CFG.radius;
-      const z = Math.sin(theta[i]) * CFG.radius;
-      const y =
-        y0[i] + Math.sin(t * CFG.flutterSpeed + flutterPhase[i]) * CFG.flutter;
+        const targetX = routePointA.x;
+        const targetY = routePointA.y;
+        const targetZ = routePointA.z;
+        const targetNextX = routePointB.x;
+        const targetNextZ = routePointB.z;
 
-      ringX[i] = x;
-      ringY[i] = y;
-      ringZ[i] = z;
+        const toTargetX = targetX - routeFollowX[i];
+        const toTargetY = targetY - routeFollowY[i];
+        const toTargetZ = targetZ - routeFollowZ[i];
+        const toTargetDist = Math.hypot(toTargetX, toTargetY, toTargetZ);
+        const orbitSpeed = Math.max(0.2, CFG.radius * speed[i]);
+        const maxStep =
+          orbitSpeed * CFG.shapeTransitionSpeedFactor * Math.max(0, dt);
+        if (toTargetDist <= Math.max(maxStep, 1e-5)) {
+          routeFollowX[i] = targetX;
+          routeFollowY[i] = targetY;
+          routeFollowZ[i] = targetZ;
+        } else {
+          const inv = 1 / toTargetDist;
+          routeFollowX[i] += toTargetX * inv * maxStep;
+          routeFollowY[i] += toTargetY * inv * maxStep;
+          routeFollowZ[i] += toTargetZ * inv * maxStep;
+        }
+
+        const x = routeFollowX[i];
+        const y = routeFollowY[i];
+        const z = routeFollowZ[i];
+
+        let dirX;
+        let dirZ;
+        if (toTargetDist > maxStep * 0.35 + 1e-5) {
+          dirX = toTargetX;
+          dirZ = toTargetZ;
+        } else {
+          dirX = targetNextX - targetX;
+          dirZ = targetNextZ - targetZ;
+        }
+        const dirLen = Math.hypot(dirX, dirZ);
+        if (dirLen > 1e-5) {
+          dirX /= dirLen;
+          dirZ /= dirLen;
+        } else {
+          dirX = -Math.sin(theta[i]) * travelDirection;
+          dirZ = Math.cos(theta[i]) * travelDirection;
+        }
+
+        ringX[i] = x;
+        ringY[i] = y;
+        ringZ[i] = z;
+        faceDirX[i] = dirX;
+        faceDirZ[i] = dirZ;
+      }
     }
 
-    if (transformState.mode === "to2d") {
+    if (transformState.mode === "scatter3d") {
+      updateScatter3D(dt);
+      visualScale = 1;
+    } else if (transformState.mode === "return3d") {
+      updateReturnFromScatter3D(dt);
+      visualScale = 1;
+    } else if (transformState.mode === "to2d") {
       updateTo2D(dt, lastCamera);
     } else if (transformState.mode === "fly2d") {
       updateFly2D(dt, lastCamera);
@@ -978,14 +1111,83 @@ function makeInstancedBillboards({ texture, rects, count }) {
 
     mat.uniforms.uGlobalScale.value = visualScale;
 
+    let camRightX = 1;
+    let camRightZ = 0;
+    if (lastCamera) {
+      const e = lastCamera.matrixWorld.elements;
+      camRightX = e[0];
+      camRightZ = e[2];
+      const camRightLen = Math.hypot(camRightX, camRightZ);
+      if (camRightLen > 1e-5) {
+        camRightX /= camRightLen;
+        camRightZ /= camRightLen;
+      } else {
+        camRightX = 1;
+        camRightZ = 0;
+      }
+    }
+    let topViewBlend = 0;
+    if (lastCamera) {
+      const camLift = lastCamera.position.y - controls.target.y;
+      topViewBlend = clamp01(
+        (camLift - CFG.birdTopViewPitchBlendStart) /
+          Math.max(
+            1e-5,
+            CFG.birdTopViewPitchBlendEnd - CFG.birdTopViewPitchBlendStart,
+          ),
+      );
+    }
+    const useMovementFacingSign =
+      transformState.mode === "scatter3d" || transformState.mode === "return3d";
+    const flipAlpha =
+      1 - Math.exp(-CFG.birdSideFlipResponse * Math.max(0, dt));
+
     for (let i = 0; i < count; i++) {
+      let dirX = faceDirX[i];
+      let dirZ = faceDirZ[i];
+      const dirLen = Math.hypot(dirX, dirZ);
+      if (dirLen < 1e-5) {
+        dirX = -Math.sin(theta[i]) * travelDirection;
+        dirZ = Math.cos(theta[i]) * travelDirection;
+      }
+      const signBasisX = useMovementFacingSign ? dirX : -Math.sin(theta[i]);
+      const signBasisZ = useMovementFacingSign ? dirZ : Math.cos(theta[i]);
+      const side = signBasisX * camRightX + signBasisZ * camRightZ;
+      let targetFlip = rots[i] >= 0 ? 1 : -1;
+      if (Math.abs(side) >= CFG.birdSideFlipDeadzone) {
+        // CW baseline should remain the "normal" orientation.
+        targetFlip = side >= 0 ? -1 : 1;
+      }
+      rots[i] += (targetFlip - rots[i]) * flipAlpha;
+      rots[i] = clamp(rots[i], -1, 1);
+      const moveYaw = Math.atan2(dirX, dirZ);
+      const renderYaw = constrainYawForCamera(
+        moveYaw,
+        posX[i],
+        posZ[i],
+        lastCamera,
+      );
+      let renderPitch = 0;
+      if (topViewBlend > 1e-5 && lastCamera) {
+        const toCamX = lastCamera.position.x - posX[i];
+        const toCamY = lastCamera.position.y - posY[i];
+        const toCamZ = lastCamera.position.z - posZ[i];
+        const horiz = Math.hypot(toCamX, toCamZ);
+        const rawPitch = Math.atan2(toCamY, Math.max(1e-5, horiz));
+        const pitchTarget =
+          Math.max(0, rawPitch) * CFG.birdTopViewPitchStrength * topViewBlend;
+        renderPitch = -Math.min(CFG.birdTopViewPitchMax, pitchTarget);
+      }
+
       dummy.position.set(posX[i], posY[i], posZ[i]);
+      dummy.rotation.set(renderPitch, renderYaw, 0);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }
 
     if (lineCount > 0) updateAllLines();
 
+    rotAttr.needsUpdate = true;
     mesh.instanceMatrix.needsUpdate = true;
     lineGeom.attributes.position.needsUpdate = true;
   }
@@ -997,6 +1199,47 @@ function makeInstancedBillboards({ texture, rects, count }) {
       return;
     }
     beginTo3D(lastCamera);
+  }
+
+  function toggleScatterFlight() {
+    if (transformState.mode === "scatter3d") {
+      beginReturnFromScatter();
+      return;
+    }
+    if (transformState.mode === "return3d") {
+      triggerScatterFlight();
+      return;
+    }
+    triggerScatterFlight();
+  }
+
+  function triggerScatterFlight() {
+    transformState.mode = "scatter3d";
+    transformState.timer = 0;
+    transformState.reverseFly = false;
+    visualScale = 1;
+
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dx = Math.cos(angle);
+      const dz = Math.sin(angle);
+
+      const scatterSpeed = lerp(
+        CFG.scatterSpeedMin,
+        CFG.scatterSpeedMax,
+        Math.random(),
+      );
+      scatterVelX[i] = dx * scatterSpeed;
+      scatterVelY[i] = 0;
+      scatterVelZ[i] = dz * scatterSpeed;
+      faceDirX[i] = scatterVelX[i];
+      faceDirZ[i] = scatterVelZ[i];
+    }
+  }
+
+  function beginReturnFromScatter() {
+    transformState.mode = "return3d";
+    transformState.timer = 0;
   }
 
   function beginTo2D(cameraRef) {
@@ -1177,6 +1420,90 @@ function makeInstancedBillboards({ texture, rects, count }) {
     }
   }
 
+  function updateScatter3D(dt) {
+    const accelScale = 1 + CFG.scatterAccel * dt;
+    for (let i = 0; i < count; i++) {
+      posX[i] += scatterVelX[i] * dt;
+      posY[i] += scatterVelY[i] * dt;
+      posZ[i] += scatterVelZ[i] * dt;
+
+      scatterVelX[i] *= accelScale;
+      scatterVelY[i] *= accelScale;
+      scatterVelZ[i] *= accelScale;
+      faceDirX[i] = scatterVelX[i];
+      faceDirZ[i] = scatterVelZ[i];
+    }
+  }
+
+  function constrainYawForCamera(moveYaw, x, z, cameraRef) {
+    if (!cameraRef) return moveYaw;
+    const toCamX = cameraRef.position.x - x;
+    const toCamZ = cameraRef.position.z - z;
+    if (toCamX * toCamX + toCamZ * toCamZ < 1e-8) return moveYaw;
+
+    const camYaw = Math.atan2(toCamX, toCamZ);
+    const delta = shortestAngleDelta(moveYaw, camYaw);
+    const clampedDelta = clamp(
+      delta,
+      -CFG.birdFacingMaxOffCameraYaw,
+      CFG.birdFacingMaxOffCameraYaw,
+    );
+    return camYaw + clampedDelta;
+  }
+
+  function shortestAngleDelta(a, b) {
+    const twoPi = Math.PI * 2;
+    let d = (a - b) % twoPi;
+    if (d > Math.PI) d -= twoPi;
+    if (d < -Math.PI) d += twoPi;
+    return d;
+  }
+
+  function updateReturnFromScatter3D(dt) {
+    let allArrived = true;
+    const distNormDen = Math.max(CFG.radius * 4.0, 1e-5);
+
+    for (let i = 0; i < count; i++) {
+      const dx = ringX[i] - posX[i];
+      const dy = ringY[i] - posY[i];
+      const dz = ringZ[i] - posZ[i];
+      const dist = Math.hypot(dx, dy, dz);
+
+      if (dist > CFG.scatterReturnSnapDistance) {
+        allArrived = false;
+        const speed = lerp(
+          CFG.scatterReturnSpeedMin,
+          CFG.scatterReturnSpeedMax,
+          clamp01(dist / distNormDen),
+        );
+        const step = Math.min(dist, speed * dt);
+        const inv = 1 / Math.max(dist, 1e-5);
+
+        posX[i] += dx * inv * step;
+        posY[i] += dy * inv * step;
+        posZ[i] += dz * inv * step;
+        faceDirX[i] = dx;
+        faceDirZ[i] = dz;
+      } else {
+        posX[i] = ringX[i];
+        posY[i] = ringY[i];
+        posZ[i] = ringZ[i];
+        faceDirX[i] = -Math.sin(theta[i]) * travelDirection;
+        faceDirZ[i] = Math.cos(theta[i]) * travelDirection;
+      }
+    }
+
+    if (allArrived) {
+      transformState.mode = "world3d";
+      transformState.timer = 0;
+      for (let i = 0; i < count; i++) {
+        posX[i] = ringX[i];
+        posY[i] = ringY[i];
+        posZ[i] = ringZ[i];
+      }
+    }
+  }
+
   function screenToWorld(sx, sy, cameraRef, out) {
     out.set(sx, sy, CFG.bird2DScreenDepthNdc).unproject(cameraRef);
     return out;
@@ -1187,9 +1514,65 @@ function makeInstancedBillboards({ texture, rects, count }) {
     return out;
   }
 
+  function getRouteXZ(angle, morph, out) {
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    const circleX = c * CFG.radius;
+    const circleZ = s * CFG.radius;
+    const maxAbs = Math.max(Math.abs(c), Math.abs(s), 1e-5);
+    const squareX = (c / maxAbs) * CFG.radius;
+    const squareZ = (s / maxAbs) * CFG.radius;
+    out.x = lerp(circleX, squareX, morph);
+    out.z = lerp(circleZ, squareZ, morph);
+    return out;
+  }
+
+  function getShapePoint(i, angle, time, mode, out) {
+    const flutterY =
+      y0[i] + Math.sin(time * CFG.flutterSpeed + flutterPhase[i]) * CFG.flutter;
+
+    if (mode === "double-cylinder") {
+      const inner = innerRingMask[i] === 1;
+      const radius = inner ? CFG.radius * CFG.shapeInnerRadiusFactor : CFG.radius;
+      const rate = inner ? CFG.shapeInnerAngularRate : 1.0;
+      const a = angle * rate;
+      out.x = Math.cos(a) * radius;
+      out.z = Math.sin(a) * radius;
+      out.y = inner ? flutterY * CFG.shapeInnerHeightFactor : flutterY;
+      return out;
+    }
+
+    if (mode === "mobius") {
+      const u = angle * CFG.shapeMobiusAngularRate;
+      const v = mobiusLane[i] * CFG.shapeMobiusHalfWidth;
+      const cu = Math.cos(u);
+      const su = Math.sin(u);
+      const cHalf = Math.cos(u * 0.5);
+      const sHalf = Math.sin(u * 0.5);
+      const bandR = CFG.radius * CFG.shapeMobiusRadiusFactor;
+      const radial = bandR + v * cHalf;
+      out.x = radial * cu;
+      out.z = radial * su;
+      out.y = v * sHalf + flutterY * CFG.shapeMobiusFlutterMix;
+      return out;
+    }
+
+    const morph = mode === "cube" ? routeState.current : 0;
+    getRouteXZ(angle, morph, out);
+    out.y = flutterY;
+    return out;
+  }
+
+  function toggleCylinderCubeRoute() {
+    shapeState.index = shapeState.index === 3 ? 0 : 3;
+  }
+
+  function cycleRouteShape() {
+    shapeState.index = (shapeState.index + 1) % SHAPE_MODES.length;
+  }
+
   function randomizeConnections() {
     if (lineCount <= 0) return;
-
     const sideA = pickRandomIndices(count, lineCount);
     const sideAFlag = new Uint8Array(count);
     for (let i = 0; i < sideA.length; i++) sideAFlag[sideA[i]] = 1;
@@ -1314,12 +1697,29 @@ function makeInstancedBillboards({ texture, rects, count }) {
     const rotAlpha = 1 - Math.exp(-CFG.rmsRotateResponse * Math.max(0, dt));
     const crestAlpha =
       1 - Math.exp(-CFG.crestYRotateResponse * Math.max(0, dt));
+    const middleAlpha =
+      1 - Math.exp(-CFG.middlePeakYRotateResponse * Math.max(0, dt));
+    const middleDecay =
+      1 - Math.exp(-CFG.middlePeakYRotateDecay * Math.max(0, dt));
 
     audioRotAmount += (rmsTarget - audioRotAmount) * rotAlpha;
     crestYRotAmount += (crestTarget - crestYRotAmount) * crestAlpha;
+    middlePeakYRotTarget += (0 - middlePeakYRotTarget) * middleDecay;
+    middlePeakYRotAmount +=
+      (middlePeakYRotTarget - middlePeakYRotAmount) * middleAlpha;
 
     mat.uniforms.uAudioRot.value = audioRotAmount;
-    mat.uniforms.uCrestYRot.value = crestYRotAmount;
+    mat.uniforms.uCrestYRot.value = crestYRotAmount + middlePeakYRotAmount;
+  }
+
+  function triggerMiddlePeakYRotation() {
+    middlePeakYRotDir *= -1;
+    const nextTarget = middlePeakYRotTarget + middlePeakYRotDir * CFG.middlePeakYRotateStep;
+    middlePeakYRotTarget = clamp(
+      nextTarget,
+      -CFG.middlePeakYRotateMax,
+      CFG.middlePeakYRotateMax,
+    );
   }
 
   function randomizePerBirdRainbowColors() {
@@ -1449,6 +1849,10 @@ function makeInstancedBillboards({ texture, rects, count }) {
     lines,
     update,
     toggle2DMode,
+    toggleScatterFlight,
+    triggerScatterFlight,
+    toggleCylinderCubeRoute,
+    cycleRouteShape,
     randomizeConnections,
     updateLabels,
     setLinesVisible,
@@ -1458,14 +1862,20 @@ function makeInstancedBillboards({ texture, rects, count }) {
     randomizePerBirdSingleHueFamilyShades,
     advanceInfectionSpread,
     setAudioReactiveRotation,
+    triggerMiddlePeakYRotation,
     getAudioReactiveRotation: () => ({
       audioRotAmount,
       crestYRotAmount,
+      middlePeakYRotAmount,
     }),
     getInfectionProgress: () => ({
       infectedCount: infectionState.infectedCount,
       totalCount: count,
       hue: infectionState.hue,
+    }),
+    getRouteShapeState: () => ({
+      index: shapeState.index,
+      mode: SHAPE_MODES[shapeState.index] || SHAPE_MODES[0],
     }),
   };
 }
@@ -1989,6 +2399,7 @@ function setupAudioAnalysisUI() {
   root.appendChild(metrics);
 
   document.body.appendChild(root);
+  ensureCenterLoudnessDisplay();
 
   analysisState.ui = {
     root,
@@ -2001,6 +2412,82 @@ function setupAudioAnalysisUI() {
     metrics,
     lastTextUpdate: 0,
   };
+}
+
+function ensureCenterLoudnessDisplay() {
+  if (analysisState.centerLoudnessDisplay) return analysisState.centerLoudnessDisplay;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: true,
+    depthWrite: true,
+    alphaTest: 0.06,
+    opacity: 0.82,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.set(0, 0, 0);
+  // Keep this below birds (mesh.renderOrder = 2) so front birds naturally cover it.
+  sprite.renderOrder = 1;
+  // Half-sized compared to the previous center text pass.
+  sprite.scale.set(1.7, 0.85, 1);
+  scene.add(sprite);
+
+  const display = {
+    canvas,
+    ctx,
+    texture,
+    material,
+    sprite,
+    value: "",
+  };
+  analysisState.centerLoudnessDisplay = display;
+  drawCenterLoudnessText(display, "0.0");
+  return display;
+}
+
+function drawCenterLoudnessText(display, value) {
+  const text = `${value}`;
+  display.value = text;
+
+  const { canvas, ctx, texture } = display;
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+  ctx.font = "600 148px Helvetica Neue, Helvetica, Arial, sans-serif";
+  ctx.lineWidth = 9;
+  ctx.strokeStyle = "rgba(0,0,0,0.36)";
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  const x = w * 0.5;
+  const y = h * 0.54;
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+  texture.needsUpdate = true;
+}
+
+function setCenterLoudnessText(value) {
+  const display = ensureCenterLoudnessDisplay();
+  if (!display) return;
+  const text = `${value}`;
+  if (display.value === text) return;
+  drawCenterLoudnessText(display, text);
 }
 
 async function ensureAudioAnalysisGraph() {
@@ -2045,18 +2532,22 @@ async function ensureAudioAnalysisGraph() {
   analysisState.was1336InRange = false;
   analysisState.prevDominantHz = NaN;
   analysisState.was47InRange = false;
+  analysisState.prevMiddlePeakHz = NaN;
+  analysisState.middlePeakBottomHits = 0;
   analysisState.initialized = true;
 }
 
 function updateAudioAnalysis(dt, t) {
   const ui = analysisState.ui;
   if (!ui) return;
+  ensureCenterLoudnessDisplay();
 
   const song = audioState.shangri;
   if (!analysisState.initialized || !analysisState.analyser || !song) {
     if (birdSystem && typeof birdSystem.setAudioReactiveRotation === "function") {
       birdSystem.setAudioReactiveRotation(0, 0, dt);
     }
+    setCenterLoudnessText("0.0");
     ui.status.textContent = "Status: waiting for G key";
     clearAnalysisCanvases();
     hideBandRows();
@@ -2091,6 +2582,9 @@ function updateAudioAnalysis(dt, t) {
   const crest = peak / Math.max(1e-6, rms);
   const loudnessDb = 20 * Math.log10(Math.max(1e-7, rms));
   const zcrNorm = zcr / analysisState.timeData.length;
+  setCenterLoudnessText(
+    Number.isFinite(loudnessDb) ? loudnessDb.toFixed(1) : "0.0",
+  );
 
   if (birdSystem && typeof birdSystem.setAudioReactiveRotation === "function") {
     birdSystem.setAudioReactiveRotation(rms, crest, dt);
@@ -2236,6 +2730,23 @@ function updateAudioAnalysis(dt, t) {
 
   peaks.sort((a, b) => b.mag - a.mag);
   analysisState.peaks = peaks.slice(0, 5);
+  const middlePeakHz =
+    analysisState.peaks.length >= 3 ? analysisState.peaks[2].freq : NaN;
+  const middlePeakBottomTriggered =
+    Number.isFinite(middlePeakHz) &&
+    Number.isFinite(analysisState.prevMiddlePeakHz) &&
+    analysisState.prevMiddlePeakHz > CFG.middlePeakBottomTriggerHz &&
+    middlePeakHz <= CFG.middlePeakBottomTriggerHz;
+  if (middlePeakBottomTriggered) {
+    analysisState.middlePeakBottomHits += 1;
+    if (
+      birdSystem &&
+      typeof birdSystem.triggerMiddlePeakYRotation === "function"
+    ) {
+      birdSystem.triggerMiddlePeakYRotation();
+    }
+  }
+  analysisState.prevMiddlePeakHz = middlePeakHz;
 
   drawWaveform(ui.waveCtx, ui.waveCanvas, analysisState.timeData);
   drawSpectrum(ui.specCtx, ui.specCanvas, analysisState.freqDb, sampleRate);
@@ -2270,6 +2781,10 @@ function updateAudioAnalysis(dt, t) {
       birdSystem && typeof birdSystem.getAudioReactiveRotation === "function"
         ? birdSystem.getAudioReactiveRotation()
         : null;
+    const routeShapeState =
+      birdSystem && typeof birdSystem.getRouteShapeState === "function"
+        ? birdSystem.getRouteShapeState()
+        : null;
 
     ui.metrics.textContent =
       `rms: ${rms.toFixed(4)}\n` +
@@ -2279,7 +2794,7 @@ function updateAudioAnalysis(dt, t) {
       `crest y trigger: ${CFG.crestYRotateTrigger.toFixed(2)} (${crest >= CFG.crestYRotateTrigger ? "active" : "off"})\n` +
       `${
         reactiveRot
-          ? `bird z-rot: ${((reactiveRot.audioRotAmount * 180) / Math.PI).toFixed(2)} deg\nbird y-rot: ${((reactiveRot.crestYRotAmount * 180) / Math.PI).toFixed(2)} deg\n`
+          ? `bird z-rot: ${((reactiveRot.audioRotAmount * 180) / Math.PI).toFixed(2)} deg\nbird y-rot: ${((reactiveRot.crestYRotAmount * 180) / Math.PI).toFixed(2)} deg\nmiddle trig y-add: ${((reactiveRot.middlePeakYRotAmount * 180) / Math.PI).toFixed(2)} deg\n`
           : ""
       }` +
       `loudness (dBFS): ${loudnessDb.toFixed(1)}\n` +
@@ -2292,6 +2807,9 @@ function updateAudioAnalysis(dt, t) {
       `onset threshold: ${onsetThreshold.toFixed(6)}\n` +
       `bpm estimate: ${analysisState.bpm > 0 ? analysisState.bpm.toFixed(1) : "n/a"}\n` +
       `dominant frequency: ${Math.round(dominantHz)} Hz\n` +
+      `middle peak (top5 #3): ${Number.isFinite(middlePeakHz) ? Math.round(middlePeakHz) : "n/a"} Hz\n` +
+      `middle 270Hz bottom trigger: ${middlePeakBottomTriggered ? "hit" : "off"} (${analysisState.middlePeakBottomHits})\n` +
+      `${routeShapeState ? `route shape: ${routeShapeState.mode}\n` : ""}` +
       `1336 trigger window: ${in1336Window ? "hit" : "off"}\n` +
       `47Hz down-trigger window: ${in47Window ? (isDescendingAt47 ? "descending hit" : "in-range") : "off"}\n` +
       `color mode: ${colorMode}\n` +

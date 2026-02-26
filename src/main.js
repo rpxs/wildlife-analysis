@@ -46,7 +46,7 @@ const homeState = {
   hasCustomEdits: false,
   forceDefaultOnly: false,
   mobileCameraApplied: false,
-  mobileStartPressed: false,
+  startPressed: false,
   unlockArmed: false,
   defaultAutoload: {
     timeoutId: null,
@@ -144,7 +144,7 @@ if (CAPTURE_BUTTON) {
 function setDirectionButtonLabel() {
   if (!DIRECTION_BUTTON) return;
   DIRECTION_BUTTON.textContent =
-    travelDirection === 1 ? "Direction: CW" : "Direction: CCW";
+    travelDirection === 1 ? "direction: CW" : "direction: CCW";
 }
 
 function toggleTravelDirection() {
@@ -265,23 +265,21 @@ function initHomePlaybackUI() {
 
   if (HOME_MOBILE_START_BUTTON) {
     HOME_MOBILE_START_BUTTON.addEventListener("click", async () => {
-      homeState.mobileStartPressed = true;
-      HOME_MOBILE_START_BUTTON.style.display = "none";
+      homeState.startPressed = true;
       cancelHomeDefaultAutoload();
-      if (editState.playback.events.length > 0) {
-        const ok = await playShangriLa(true);
-        if (!ok) {
-          setHomePlaybackStatus("audio blocked, tap start again");
-          HOME_MOBILE_START_BUTTON.style.display = "inline-block";
-          return;
-        }
-        setHomePlaybackStatus(
-          `playing edits 0/${editState.playback.events.length}`,
-        );
-      } else {
-        await loadDefaultEditsForHome(true);
-      }
       applyHomeResponsiveUi();
+
+      if (editState.playback.events.length <= 0) {
+        await loadDefaultEditsForHome(false);
+      }
+
+      if (editState.playback.events.length <= 0) return;
+      const ok = await tryStartHomePlayback(true);
+      if (!ok) return;
+
+      setHomePlaybackStatus(
+        `playing edits 0/${editState.playback.events.length}`,
+      );
     });
   }
 
@@ -302,10 +300,16 @@ function initHomePlaybackUI() {
         const normalized = normalizeEditsPayload(payload);
         homeState.hasCustomEdits = true;
         cancelHomeDefaultAutoload();
-        startEditPlayback(normalized.events, true);
-        setHomePlaybackStatus(
-          `loaded ${normalized.events.length} edits from ${file.name}`,
-        );
+        startEditPlayback(normalized.events, false);
+        if (homeState.startPressed) {
+          const ok = await tryStartHomePlayback(true);
+          if (!ok) return;
+          setHomePlaybackStatus(`loaded ${normalized.events.length} edits from ${file.name}`);
+        } else {
+          setHomePlaybackStatus(
+            `loaded ${normalized.events.length} edits from ${file.name}, tap start`,
+          );
+        }
       } catch (err) {
         console.warn("Import failed:", err);
         setHomePlaybackStatus("import failed");
@@ -316,7 +320,7 @@ function initHomePlaybackUI() {
   }
 
   if (HOME_LOAD_LOCAL_BUTTON) {
-    HOME_LOAD_LOCAL_BUTTON.addEventListener("click", () => {
+    HOME_LOAD_LOCAL_BUTTON.addEventListener("click", async () => {
       if (homeState.forceDefaultOnly) return;
       const loaded = loadEditsFromLocalStorage();
       if (!loaded || loaded.events.length === 0) {
@@ -325,12 +329,18 @@ function initHomePlaybackUI() {
       }
       homeState.hasCustomEdits = true;
       cancelHomeDefaultAutoload();
-      startEditPlayback(loaded.events, true);
-      setHomePlaybackStatus(`loaded ${loaded.events.length} saved edits`);
+      startEditPlayback(loaded.events, false);
+      if (homeState.startPressed) {
+        const ok = await tryStartHomePlayback(true);
+        if (!ok) return;
+        setHomePlaybackStatus(`loaded ${loaded.events.length} saved edits`);
+      } else {
+        setHomePlaybackStatus(`loaded ${loaded.events.length} saved edits, tap start`);
+      }
     });
   }
 
-  setHomePlaybackStatus("import edit json to start playback");
+  setHomePlaybackStatus("tap start to begin");
   startHomeDefaultAutoload();
 }
 
@@ -352,7 +362,7 @@ function applyHomeResponsiveUi() {
   }
   if (HOME_MOBILE_START_BUTTON) {
     HOME_MOBILE_START_BUTTON.style.display =
-      homeState.forceDefaultOnly && !homeState.mobileStartPressed
+      !homeState.startPressed
         ? "inline-block"
         : "none";
   }
@@ -453,9 +463,7 @@ function startHomeDefaultAutoload() {
       state.countdownEl.style.display = "none";
     }
     if (homeState.forceDefaultOnly || !homeState.hasCustomEdits) {
-      await loadDefaultEditsForHome(
-        !homeState.forceDefaultOnly || homeState.mobileStartPressed,
-      );
+      await loadDefaultEditsForHome(false);
     }
   }, state.durationMs);
 }
@@ -495,13 +503,22 @@ async function loadDefaultEditsForHome(autoplay = true) {
       );
     } else {
       setHomePlaybackStatus(
-        `default loaded (${normalized.events.length} edits), tap Start`,
+        `default loaded (${normalized.events.length} edits), tap start`,
       );
     }
   } catch (err) {
     console.warn("Could not load default.json:", err);
     setHomePlaybackStatus("default.json not found");
   }
+}
+
+async function tryStartHomePlayback(reset = true) {
+  const ok = await playShangriLa(reset);
+  if (ok) return true;
+  homeState.startPressed = false;
+  setHomePlaybackStatus("audio blocked, tap start again");
+  applyHomeResponsiveUi();
+  return false;
 }
 
 function initEditorUI() {
@@ -594,8 +611,8 @@ function setHomePlaybackStatus(text) {
 function setEditorRecordButtonLabel() {
   if (!EDITOR_RECORD_BUTTON) return;
   EDITOR_RECORD_BUTTON.textContent = editState.recording
-    ? "Stop Recording"
-    : "Start Recording";
+    ? "stop recording"
+    : "start recording";
 }
 
 function formatTimelineTimeMs(ms) {
@@ -609,7 +626,7 @@ function formatTimelineTimeMs(ms) {
 function renderEditorTimeline() {
   if (!EDITOR_TIMELINE) return;
   if (editState.events.length <= 0) {
-    EDITOR_TIMELINE.textContent = "No edits yet.";
+    EDITOR_TIMELINE.textContent = "no edits yet.";
     return;
   }
   const lines = [];
@@ -3046,7 +3063,7 @@ function setupAudioAnalysisUI() {
   root.appendChild(title);
 
   const status = document.createElement("div");
-  status.textContent = "Status: waiting for G key";
+  status.textContent = "status: waiting for G key";
   status.style.color = "#a7d6ff";
   status.style.marginBottom = "6px";
   root.appendChild(status);
@@ -3275,7 +3292,7 @@ function updateAudioAnalysis(dt, t) {
       birdSystem.setAudioReactiveRotation(0, 0, dt);
     }
     setCenterLoudnessText("0.0");
-    ui.status.textContent = "Status: waiting for G key";
+    ui.status.textContent = "status: waiting for G key";
     clearAnalysisCanvases();
     hideBandRows();
     return;
@@ -3482,7 +3499,7 @@ function updateAudioAnalysis(dt, t) {
   const playing = !song.paused && !song.ended;
   const duration = Number.isFinite(song.duration) ? song.duration : 0;
   const position = Number.isFinite(song.currentTime) ? song.currentTime : 0;
-  ui.status.textContent = `Status: ${playing ? "playing" : "idle"} | ${formatClock(position)} / ${formatClock(duration)}`;
+  ui.status.textContent = `status: ${playing ? "playing" : "idle"} | ${formatClock(position)} / ${formatClock(duration)}`;
 
   if (t - ui.lastTextUpdate > 0.05) {
     ui.lastTextUpdate = t;
@@ -3624,7 +3641,7 @@ function clearAnalysisCanvases() {
   ui.specCtx.fillStyle = "rgba(10,16,28,0.95)";
   ui.specCtx.fillRect(0, 0, ui.specCanvas.width, ui.specCanvas.height);
   if (ui.metrics)
-    ui.metrics.textContent = "Press G to play and start analysis...";
+    ui.metrics.textContent = "press G to play and start analysis...";
 }
 
 function hideBandRows() {

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>wildlife editor</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      #app { width: 100%; height: 100%; }
+      .hud {
+        position: fixed; left: 12px; bottom: 12px; color: rgba(255,255,255,0.75);
+        font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        user-select: none; pointer-events: none;
+      }
+      .mode-label { color: #4da8ff; }
+      .ui-btn {
+        position: fixed;
+        right: 12px;
+        z-index: 10;
+        border: 1px solid rgba(255,255,255,0.28);
+        background: rgba(0,0,0,0.55);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        cursor: pointer;
+      }
+      .ui-btn:hover { background: rgba(255,255,255,0.12); }
+      .ui-btn:active { transform: translateY(1px); }
+      .dir-btn { top: 12px; }
+      .capture-btn { top: 54px; }
+      .editor-panel {
+        position: fixed;
+        right: 12px;
+        top: 96px;
+        z-index: 14;
+        width: 360px;
+        max-height: calc(100vh - 120px);
+        overflow: auto;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(0,0,0,0.56);
+        border-radius: 10px;
+        padding: 10px;
+        color: rgba(255,255,255,0.9);
+        font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .editor-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .editor-title a {
+        color: #8dc5ff;
+        text-decoration: none;
+      }
+      .editor-title a:hover { text-decoration: underline; }
+      .editor-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .editor-actions button {
+        border: 1px solid rgba(255,255,255,0.28);
+        background: rgba(0,0,0,0.5);
+        color: #fff;
+        padding: 5px 8px;
+        border-radius: 7px;
+        cursor: pointer;
+        font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .editor-actions button:hover { background: rgba(255,255,255,0.1); }
+      #editor-status {
+        color: rgba(255,255,255,0.78);
+        margin-bottom: 8px;
+      }
+      #editor-timeline {
+        margin: 0;
+        white-space: pre;
+        background: rgba(0,0,0,0.36);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px;
+        padding: 8px;
+        max-height: 45vh;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body data-page="editor">
+    <div id="app"></div>
+
+    <button id="direction-toggle" class="ui-btn dir-btn" type="button">
+      Direction: CW
+    </button>
+    <button id="capture-photo" class="ui-btn capture-btn" type="button">
+      Capture 1:1
+    </button>
+
+    <aside class="editor-panel">
+      <div class="editor-title">
+        <strong>editor | shangri-la.mp3</strong>
+        <a href="/">open player</a>
+      </div>
+      <div class="editor-actions">
+        <button id="editor-play-btn" type="button">Play From Start</button>
+        <button id="editor-record-btn" type="button">Start Recording</button>
+        <button id="editor-clear-btn" type="button">Clear</button>
+        <button id="editor-save-local-btn" type="button">Save Local</button>
+        <button id="editor-load-local-btn" type="button">Load Local</button>
+        <button id="editor-export-btn" type="button">Export JSON</button>
+        <button id="editor-import-btn" type="button">Import JSON</button>
+      </div>
+      <input id="editor-import-file" type="file" accept=".json,application/json" hidden />
+      <div id="editor-status">ready</div>
+      <pre id="editor-timeline">No edits yet.</pre>
+    </aside>
+
+    <div class="hud">space | H: color mode | J: trees | B: scatter 3d | V: cinema | K: shapes | G: music | mode: <span id="color-mode-label" class="mode-label">infection</span></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

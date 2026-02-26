@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>bcycle</title>
+    <title>wildlife player</title>
     <style>
       html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
       #app { width: 100%; height: 100%; }
@@ -29,19 +29,54 @@
       .ui-btn:hover { background: rgba(255,255,255,0.12); }
       .ui-btn:active { transform: translateY(1px); }
       .capture-btn {
-        top: 54px;
+        top: 12px;
+      }
+      .home-panel {
+        position: fixed;
+        left: 10px;
+        top: 430px;
+        z-index: 12;
+        display: grid;
+        gap: 8px;
+        width: 260px;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(0,0,0,0.52);
+        border-radius: 10px;
+        padding: 10px;
+        color: rgba(255,255,255,0.9);
+        font: 12px/1.3 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      .home-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .home-link {
+        color: #8dc5ff;
+        text-decoration: none;
+      }
+      .home-link:hover {
+        text-decoration: underline;
+      }
+      .status {
+        color: rgba(255,255,255,0.75);
       }
     </style>
   </head>
-  <body>
+  <body data-page="home">
     <div id="app"></div>
-    <button id="direction-toggle" class="ui-btn" type="button">
-      Direction: CW
-    </button>
     <button id="capture-photo" class="ui-btn capture-btn" type="button">
       Capture 1:1
     </button>
-    <div class="hud">space | H: color mode | J: trees | B: scatter 3d | V: cinema | K: shapes | G: music | mode: <span id="color-mode-label" class="mode-label">infection</span></div>
+    <section id="home-panel" class="home-panel">
+      <div><a class="home-link" href="/editor.html">Open Editor</a></div>
+      <div class="home-actions">
+        <button id="home-import-btn" type="button">Import Edit JSON</button>
+        <button id="home-load-local-btn" type="button">Load Saved</button>
+      </div>
+      <input id="home-import-file" type="file" accept=".json,application/json" hidden />
+      <div id="home-playback-status" class="status">import edit json to start playback</div>
+    </section>
+    <div class="hud">player mode | import edit json to replay | mode: <span id="color-mode-label" class="mode-label">infection</span></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

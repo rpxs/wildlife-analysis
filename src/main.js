@@ -5,6 +5,25 @@ const APP = document.querySelector("#app");
 const DIRECTION_BUTTON = document.querySelector("#direction-toggle");
 const CAPTURE_BUTTON = document.querySelector("#capture-photo");
 const COLOR_MODE_LABEL = document.querySelector("#color-mode-label");
+const HOME_IMPORT_BUTTON = document.querySelector("#home-import-btn");
+const HOME_IMPORT_INPUT = document.querySelector("#home-import-file");
+const HOME_PLAYBACK_STATUS = document.querySelector("#home-playback-status");
+const HOME_LOAD_LOCAL_BUTTON = document.querySelector("#home-load-local-btn");
+const HOME_PANEL = document.querySelector("#home-panel");
+const EDITOR_PLAY_BUTTON = document.querySelector("#editor-play-btn");
+const EDITOR_RECORD_BUTTON = document.querySelector("#editor-record-btn");
+const EDITOR_CLEAR_BUTTON = document.querySelector("#editor-clear-btn");
+const EDITOR_SAVE_LOCAL_BUTTON = document.querySelector("#editor-save-local-btn");
+const EDITOR_LOAD_LOCAL_BUTTON = document.querySelector("#editor-load-local-btn");
+const EDITOR_EXPORT_BUTTON = document.querySelector("#editor-export-btn");
+const EDITOR_IMPORT_BUTTON = document.querySelector("#editor-import-btn");
+const EDITOR_IMPORT_INPUT = document.querySelector("#editor-import-file");
+const EDITOR_STATUS = document.querySelector("#editor-status");
+const EDITOR_TIMELINE = document.querySelector("#editor-timeline");
+const PAGE_MODE = document.body?.dataset?.page === "editor" ? "editor" : "home";
+const IS_EDITOR = PAGE_MODE === "editor";
+const IS_HOME = !IS_EDITOR;
+const EDIT_STORAGE_KEY = "wildlife:shangri:edits:v1";
 
 let travelDirection = 1;
 let birdSystem = null;
@@ -12,6 +31,27 @@ let linesVisible = false;
 let introSystem = null;
 let sceneTime = 0;
 let captureInProgress = false;
+const editState = {
+  recording: false,
+  events: [],
+  playback: {
+    active: false,
+    events: [],
+    nextIndex: 0,
+    lastTimeMs: -1,
+  },
+};
+const homeState = {
+  hasCustomEdits: false,
+  defaultAutoload: {
+    timeoutId: null,
+    intervalId: null,
+    countdownEl: null,
+    startedAt: 0,
+    durationMs: 7000,
+    active: false,
+  },
+};
 const COLOR_MODES = ["infection", "family", "rainbow"];
 let colorModeIndex = 0;
 const audioState = {
@@ -190,6 +230,449 @@ function updateColorModeIndicator() {
 
 updateColorModeIndicator();
 
+function isTextInputTarget(target) {
+  const el = target;
+  if (!el || !(el instanceof HTMLElement)) return false;
+  const tag = el.tagName;
+  if (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    tag === "BUTTON" ||
+    tag === "A"
+  ) {
+    return true;
+  }
+  return Boolean(el.isContentEditable);
+}
+
+function initPageModeFeatures() {
+  if (IS_EDITOR) {
+    initEditorUI();
+    return;
+  }
+  initHomePlaybackUI();
+}
+
+function initHomePlaybackUI() {
+  positionHomePanelBelowAnalysis();
+  window.addEventListener("resize", positionHomePanelBelowAnalysis);
+
+  if (HOME_IMPORT_BUTTON && HOME_IMPORT_INPUT) {
+    HOME_IMPORT_BUTTON.addEventListener("click", () => {
+      HOME_IMPORT_INPUT.click();
+    });
+    HOME_IMPORT_INPUT.addEventListener("change", async () => {
+      const file = HOME_IMPORT_INPUT.files?.[0];
+      if (!file) return;
+      try {
+        const payload = await readJsonFile(file);
+        const normalized = normalizeEditsPayload(payload);
+        homeState.hasCustomEdits = true;
+        cancelHomeDefaultAutoload();
+        startEditPlayback(normalized.events, true);
+        setHomePlaybackStatus(
+          `loaded ${normalized.events.length} edits from ${file.name}`,
+        );
+      } catch (err) {
+        console.warn("Import failed:", err);
+        setHomePlaybackStatus("import failed");
+      } finally {
+        HOME_IMPORT_INPUT.value = "";
+      }
+    });
+  }
+
+  if (HOME_LOAD_LOCAL_BUTTON) {
+    HOME_LOAD_LOCAL_BUTTON.addEventListener("click", () => {
+      const loaded = loadEditsFromLocalStorage();
+      if (!loaded || loaded.events.length === 0) {
+        setHomePlaybackStatus("no saved edits in localStorage");
+        return;
+      }
+      homeState.hasCustomEdits = true;
+      cancelHomeDefaultAutoload();
+      startEditPlayback(loaded.events, true);
+      setHomePlaybackStatus(`loaded ${loaded.events.length} saved edits`);
+    });
+  }
+
+  setHomePlaybackStatus("import edit json to start playback");
+  startHomeDefaultAutoload();
+}
+
+function positionHomePanelBelowAnalysis() {
+  if (!IS_HOME || !HOME_PANEL) return;
+  const analysisRoot = analysisState.ui?.root;
+  if (!analysisRoot) return;
+  const rect = analysisRoot.getBoundingClientRect();
+  HOME_PANEL.style.left = `${Math.round(rect.left)}px`;
+  HOME_PANEL.style.top = `${Math.round(rect.bottom + 8)}px`;
+}
+
+function ensureHomeCountdownEl() {
+  const state = homeState.defaultAutoload;
+  if (state.countdownEl) return state.countdownEl;
+  const el = document.createElement("div");
+  Object.assign(el.style, {
+    position: "fixed",
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -50%)",
+    color: "rgba(255,255,255,0.88)",
+    font: "700 22px/1.1 Helvetica Neue, Helvetica, Arial, sans-serif",
+    letterSpacing: "0.01em",
+    textShadow: "0 0 14px rgba(0,0,0,0.55)",
+    pointerEvents: "none",
+    userSelect: "none",
+    zIndex: "40",
+    display: "none",
+  });
+  document.body.appendChild(el);
+  state.countdownEl = el;
+  return el;
+}
+
+function startHomeDefaultAutoload() {
+  if (!IS_HOME) return;
+  const state = homeState.defaultAutoload;
+  cancelHomeDefaultAutoload();
+  state.startedAt = performance.now();
+  state.active = true;
+  const el = ensureHomeCountdownEl();
+  el.style.display = "none";
+
+  state.intervalId = window.setInterval(() => {
+    if (!state.active) return;
+    const now = performance.now();
+    const remaining = Math.max(0, state.durationMs - (now - state.startedAt));
+    if (remaining <= 3000 && remaining > 0) {
+      const sec = Math.ceil(remaining / 1000);
+      el.textContent = `${sec}`;
+      el.style.display = "block";
+    } else {
+      el.style.display = "none";
+    }
+    if (remaining <= 0) {
+      el.style.display = "none";
+      window.clearInterval(state.intervalId);
+      state.intervalId = null;
+    }
+  }, 100);
+
+  state.timeoutId = window.setTimeout(async () => {
+    state.active = false;
+    if (!homeState.hasCustomEdits) {
+      await loadDefaultEditsForHome();
+    }
+  }, state.durationMs);
+}
+
+function cancelHomeDefaultAutoload() {
+  const state = homeState.defaultAutoload;
+  state.active = false;
+  if (state.timeoutId != null) {
+    window.clearTimeout(state.timeoutId);
+    state.timeoutId = null;
+  }
+  if (state.intervalId != null) {
+    window.clearInterval(state.intervalId);
+    state.intervalId = null;
+  }
+  if (state.countdownEl) {
+    state.countdownEl.style.display = "none";
+  }
+}
+
+async function loadDefaultEditsForHome() {
+  try {
+    const res = await fetch("/default.json", { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(`default.json status ${res.status}`);
+    }
+    const payload = await res.json();
+    const normalized = normalizeEditsPayload(payload);
+    if (normalized.events.length <= 0) {
+      setHomePlaybackStatus("default.json has no edits");
+      return;
+    }
+    startEditPlayback(normalized.events, true);
+    setHomePlaybackStatus(
+      `loaded default edit (${normalized.events.length} events)`,
+    );
+  } catch (err) {
+    console.warn("Could not load default.json:", err);
+    setHomePlaybackStatus("default.json not found");
+  }
+}
+
+function initEditorUI() {
+  if (EDITOR_PLAY_BUTTON) {
+    EDITOR_PLAY_BUTTON.addEventListener("click", () => {
+      void playShangriLa(true);
+    });
+  }
+
+  if (EDITOR_RECORD_BUTTON) {
+    EDITOR_RECORD_BUTTON.addEventListener("click", () => {
+      editState.recording = !editState.recording;
+      if (editState.recording && audioState.shangri?.paused) {
+        void playShangriLa(false);
+      }
+      setEditorRecordButtonLabel();
+      updateEditorStatus();
+    });
+  }
+
+  if (EDITOR_CLEAR_BUTTON) {
+    EDITOR_CLEAR_BUTTON.addEventListener("click", () => {
+      editState.events.length = 0;
+      renderEditorTimeline();
+      updateEditorStatus();
+    });
+  }
+
+  if (EDITOR_SAVE_LOCAL_BUTTON) {
+    EDITOR_SAVE_LOCAL_BUTTON.addEventListener("click", () => {
+      saveEditsToLocalStorage(editState.events);
+      updateEditorStatus("saved to localStorage");
+    });
+  }
+
+  if (EDITOR_LOAD_LOCAL_BUTTON) {
+    EDITOR_LOAD_LOCAL_BUTTON.addEventListener("click", () => {
+      const loaded = loadEditsFromLocalStorage();
+      if (!loaded || loaded.events.length === 0) {
+        updateEditorStatus("no saved edits");
+        return;
+      }
+      editState.events = loaded.events.slice();
+      renderEditorTimeline();
+      updateEditorStatus(`loaded ${editState.events.length} edits`);
+    });
+  }
+
+  if (EDITOR_EXPORT_BUTTON) {
+    EDITOR_EXPORT_BUTTON.addEventListener("click", () => {
+      exportEditsJson(editState.events);
+      updateEditorStatus("exported json");
+    });
+  }
+
+  if (EDITOR_IMPORT_BUTTON && EDITOR_IMPORT_INPUT) {
+    EDITOR_IMPORT_BUTTON.addEventListener("click", () => {
+      EDITOR_IMPORT_INPUT.click();
+    });
+    EDITOR_IMPORT_INPUT.addEventListener("change", async () => {
+      const file = EDITOR_IMPORT_INPUT.files?.[0];
+      if (!file) return;
+      try {
+        const payload = await readJsonFile(file);
+        const normalized = normalizeEditsPayload(payload);
+        editState.events = normalized.events.slice();
+        renderEditorTimeline();
+        updateEditorStatus(
+          `imported ${normalized.events.length} edits from ${file.name}`,
+        );
+      } catch (err) {
+        console.warn("Editor import failed:", err);
+        updateEditorStatus("import failed");
+      } finally {
+        EDITOR_IMPORT_INPUT.value = "";
+      }
+    });
+  }
+
+  setEditorRecordButtonLabel();
+  renderEditorTimeline();
+  updateEditorStatus("ready");
+}
+
+function setHomePlaybackStatus(text) {
+  if (!HOME_PLAYBACK_STATUS) return;
+  HOME_PLAYBACK_STATUS.textContent = text;
+}
+
+function setEditorRecordButtonLabel() {
+  if (!EDITOR_RECORD_BUTTON) return;
+  EDITOR_RECORD_BUTTON.textContent = editState.recording
+    ? "Stop Recording"
+    : "Start Recording";
+}
+
+function formatTimelineTimeMs(ms) {
+  const total = Math.max(0, Math.floor(ms));
+  const m = Math.floor(total / 60000);
+  const s = Math.floor((total % 60000) / 1000);
+  const msPart = total % 1000;
+  return `${m}:${String(s).padStart(2, "0")}.${String(msPart).padStart(3, "0")}`;
+}
+
+function renderEditorTimeline() {
+  if (!EDITOR_TIMELINE) return;
+  if (editState.events.length <= 0) {
+    EDITOR_TIMELINE.textContent = "No edits yet.";
+    return;
+  }
+  const lines = [];
+  const sorted = editState.events
+    .slice()
+    .sort((a, b) => a.atMs - b.atMs || a.key.localeCompare(b.key));
+  for (let i = 0; i < sorted.length; i++) {
+    const e = sorted[i];
+    lines.push(`${String(i + 1).padStart(4, "0")}  ${formatTimelineTimeMs(e.atMs)}  ${e.key}`);
+  }
+  EDITOR_TIMELINE.textContent = lines.join("\n");
+}
+
+function updateEditorStatus(extra = "") {
+  if (!IS_EDITOR || !EDITOR_STATUS) return;
+  const song = audioState.shangri;
+  const nowMs = song ? Math.max(0, Math.round((song.currentTime || 0) * 1000)) : 0;
+  const rec = editState.recording ? "recording" : "idle";
+  const play = song && !song.paused && !song.ended ? "playing" : "stopped";
+  EDITOR_STATUS.textContent =
+    `audio ${play} | ${rec} | edits ${editState.events.length} | t ${formatTimelineTimeMs(nowMs)}` +
+    (extra ? ` | ${extra}` : "");
+}
+
+function recordEditKey(code) {
+  if (!IS_EDITOR || !editState.recording) return;
+  const song = audioState.shangri;
+  if (!song || song.paused || song.ended) return;
+  const atMs = Math.max(0, Math.round((song.currentTime || 0) * 1000));
+  editState.events.push({ atMs, key: code });
+  renderEditorTimeline();
+  updateEditorStatus();
+}
+
+function normalizeEditsPayload(payload) {
+  const list = Array.isArray(payload) ? payload : payload?.events;
+  if (!Array.isArray(list)) {
+    throw new Error("Invalid edits JSON: expected { events: [] }");
+  }
+  const events = [];
+  for (let i = 0; i < list.length; i++) {
+    const item = list[i];
+    if (!item || typeof item !== "object") continue;
+    const key = typeof item.key === "string" ? item.key : item.code;
+    if (!key || typeof key !== "string") continue;
+    let atMs = Number(item.atMs);
+    if (!Number.isFinite(atMs)) {
+      if (Number.isFinite(item.timeMs)) atMs = Number(item.timeMs);
+      else if (Number.isFinite(item.t)) atMs = Number(item.t) * 1000;
+      else if (Number.isFinite(item.time)) atMs = Number(item.time) * 1000;
+    }
+    if (!Number.isFinite(atMs)) continue;
+    events.push({
+      atMs: Math.max(0, Math.round(atMs)),
+      key,
+    });
+  }
+  events.sort((a, b) => a.atMs - b.atMs);
+  return {
+    version: 1,
+    audio: "/shangri-la.mp3",
+    events,
+  };
+}
+
+function makeEditsPayload(events) {
+  return {
+    version: 1,
+    audio: "/shangri-la.mp3",
+    createdAt: new Date().toISOString(),
+    events: events
+      .slice()
+      .sort((a, b) => a.atMs - b.atMs)
+      .map((e) => ({ atMs: Math.max(0, Math.round(e.atMs)), key: e.key })),
+  };
+}
+
+async function readJsonFile(file) {
+  const text = await file.text();
+  return JSON.parse(text);
+}
+
+function saveEditsToLocalStorage(events) {
+  const payload = makeEditsPayload(events);
+  localStorage.setItem(EDIT_STORAGE_KEY, JSON.stringify(payload));
+}
+
+function loadEditsFromLocalStorage() {
+  const raw = localStorage.getItem(EDIT_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return normalizeEditsPayload(parsed);
+  } catch (err) {
+    console.warn("Could not parse saved edits:", err);
+    return null;
+  }
+}
+
+function exportEditsJson(events) {
+  const payload = makeEditsPayload(events);
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  const stamp = formatCaptureStamp(new Date());
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `shangri-edits-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function startEditPlayback(events, autoplay = true) {
+  const sorted = events
+    .slice()
+    .map((e) => ({ atMs: Math.max(0, Math.round(e.atMs)), key: e.key }))
+    .sort((a, b) => a.atMs - b.atMs);
+  editState.playback.events = sorted;
+  editState.playback.nextIndex = 0;
+  editState.playback.lastTimeMs = -1;
+  editState.playback.active = sorted.length > 0;
+  if (autoplay && sorted.length > 0) {
+    void playShangriLa(true);
+  }
+}
+
+function updateEditPlayback() {
+  if (!IS_HOME) return;
+  if (!editState.playback.active) return;
+  const song = audioState.shangri;
+  if (!song || song.paused) return;
+
+  const nowMs = Math.max(0, Math.round((song.currentTime || 0) * 1000));
+  if (editState.playback.lastTimeMs >= 0 && nowMs + 150 < editState.playback.lastTimeMs) {
+    editState.playback.nextIndex = 0;
+  }
+  editState.playback.lastTimeMs = nowMs;
+
+  const events = editState.playback.events;
+  while (
+    editState.playback.nextIndex < events.length &&
+    events[editState.playback.nextIndex].atMs <= nowMs
+  ) {
+    const event = events[editState.playback.nextIndex];
+    executeKeyAction(event.key, "playback");
+    editState.playback.nextIndex += 1;
+  }
+
+  if (editState.playback.nextIndex >= events.length) {
+    editState.playback.active = false;
+    setHomePlaybackStatus(`playback complete (${events.length} edits)`);
+  } else {
+    setHomePlaybackStatus(
+      `playing edits ${editState.playback.nextIndex}/${events.length}`,
+    );
+  }
+}
+
 async function captureSquarePhoto() {
   if (captureInProgress) return;
   if (!renderer || !camera || !scene) return;
@@ -325,56 +808,68 @@ function updateCameraRig(dt) {
   }
 }
 
-window.addEventListener("keydown", (event) => {
-  if (event.repeat) return;
-  if (event.code === "Space") {
-    event.preventDefault();
+function executeKeyAction(code, source = "user") {
+  if (code === "Space") {
     if (birdSystem) {
       linesVisible = !linesVisible;
       birdSystem.setLinesVisible(linesVisible);
       birdSystem.randomizeConnections();
     }
-    return;
+    return true;
   }
-
-  if (event.code === "KeyG") {
-    playShangriLa();
-    return;
+  if (code === "KeyG") {
+    void playShangriLa();
+    return true;
   }
-
-  if (event.code === "KeyT") {
+  if (code === "KeyT") {
     if (introSystem) introSystem.restart(sceneTime);
-    return;
+    return true;
   }
-
-  if (event.code === "KeyH") {
+  if (code === "KeyH") {
     cycleColorMode();
-    return;
+    return true;
   }
-
-  if (event.code === "KeyJ") {
+  if (code === "KeyJ") {
     toggleNatureVisibility();
-    return;
+    return true;
   }
-
-  if (event.code === "KeyB") {
+  if (code === "KeyB") {
     if (birdSystem && birdSystem.toggleScatterFlight) {
       birdSystem.toggleScatterFlight();
     }
-    return;
+    return true;
   }
-
-  if (event.code === "KeyV") {
+  if (code === "KeyV") {
     cycleCameraRigPreset();
-    return;
+    return true;
   }
-
-  if (event.code === "KeyK") {
+  if (code === "KeyK") {
     if (birdSystem && typeof birdSystem.cycleRouteShape === "function") {
       birdSystem.cycleRouteShape();
     }
+    return true;
   }
-});
+  if (code === "KeyD") {
+    if (source === "user") {
+      toggleTravelDirection();
+      return true;
+    }
+  }
+  return false;
+}
+
+function handleEditorKeydown(event) {
+  if (!IS_EDITOR) return;
+  if (event.repeat) return;
+  if (isTextInputTarget(event.target)) return;
+  if (event.code === "Space") event.preventDefault();
+  executeKeyAction(event.code, "user");
+  recordEditKey(event.code);
+}
+
+if (IS_EDITOR) {
+  window.addEventListener("keydown", handleEditorKeydown);
+}
 
 const CFG = {
   count: 900,
@@ -575,6 +1070,7 @@ async function boot() {
   scene.add(intro.group);
   setupAudio();
   setupAudioAnalysisUI();
+  initPageModeFeatures();
 
   const clock = new THREE.Clock();
   const tick = () => {
@@ -590,6 +1086,8 @@ async function boot() {
     intro.update(t);
     updateFlightVolume();
     updateAudioAnalysis(dt, t);
+    updateEditPlayback();
+    updateEditorStatus();
     updateNatureAnimation(dt);
     renderer.render(scene, camera);
     birds.updateLabels(
@@ -2378,10 +2876,12 @@ function updateFlightVolume() {
   audioState.flight.volume = audioState.flightVolumeCurrent;
 }
 
-async function playShangriLa() {
+async function playShangriLa(reset = true) {
   if (!audioState.shangri) return;
   await ensureAudioAnalysisGraph();
-  audioState.shangri.currentTime = 0;
+  if (reset) {
+    audioState.shangri.currentTime = 0;
+  }
   try {
     await audioState.shangri.play();
   } catch (err) {

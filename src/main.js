@@ -266,11 +266,13 @@ function initHomePlaybackUI() {
   if (HOME_MOBILE_START_BUTTON) {
     HOME_MOBILE_START_BUTTON.addEventListener("click", async () => {
       homeState.mobileStartPressed = true;
+      HOME_MOBILE_START_BUTTON.style.display = "none";
       cancelHomeDefaultAutoload();
       if (editState.playback.events.length > 0) {
         const ok = await playShangriLa(true);
         if (!ok) {
           setHomePlaybackStatus("audio blocked, tap start again");
+          HOME_MOBILE_START_BUTTON.style.display = "inline-block";
           return;
         }
         setHomePlaybackStatus(
@@ -349,9 +351,10 @@ function applyHomeResponsiveUi() {
     HOME_PANEL.style.display = homeState.forceDefaultOnly ? "none" : "grid";
   }
   if (HOME_MOBILE_START_BUTTON) {
-    HOME_MOBILE_START_BUTTON.style.display = homeState.forceDefaultOnly
-      ? "inline-block"
-      : "none";
+    HOME_MOBILE_START_BUTTON.style.display =
+      homeState.forceDefaultOnly && !homeState.mobileStartPressed
+        ? "inline-block"
+        : "none";
   }
   if (!homeState.forceDefaultOnly) {
     positionHomePanelBelowAnalysis();
@@ -362,13 +365,12 @@ function applyHomeResponsiveUi() {
 function applyHomeCameraFraming() {
   if (!IS_HOME) return;
   if (homeState.forceDefaultOnly) {
-    if (!homeState.mobileCameraApplied) {
-      camera.position.set(0, 8.5, 34);
-      controls.target.set(0, 0, 0);
-      camera.lookAt(controls.target);
-      controls.update();
-      homeState.mobileCameraApplied = true;
-    }
+    // Mobile home framing: wider and slightly recentered upward in view.
+    camera.position.set(0, 11, 42);
+    controls.target.set(0, -1.0, 0);
+    camera.lookAt(controls.target);
+    controls.update();
+    homeState.mobileCameraApplied = true;
     return;
   }
 

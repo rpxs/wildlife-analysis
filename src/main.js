@@ -43,6 +43,7 @@ const editState = {
 };
 const homeState = {
   hasCustomEdits: false,
+  forceDefaultOnly: false,
   defaultAutoload: {
     timeoutId: null,
     intervalId: null,
@@ -255,14 +256,19 @@ function initPageModeFeatures() {
 }
 
 function initHomePlaybackUI() {
-  positionHomePanelBelowAnalysis();
-  window.addEventListener("resize", positionHomePanelBelowAnalysis);
+  applyHomeResponsiveUi();
+  window.addEventListener("resize", applyHomeResponsiveUi);
 
   if (HOME_IMPORT_BUTTON && HOME_IMPORT_INPUT) {
     HOME_IMPORT_BUTTON.addEventListener("click", () => {
+      if (homeState.forceDefaultOnly) return;
       HOME_IMPORT_INPUT.click();
     });
     HOME_IMPORT_INPUT.addEventListener("change", async () => {
+      if (homeState.forceDefaultOnly) {
+        HOME_IMPORT_INPUT.value = "";
+        return;
+      }
       const file = HOME_IMPORT_INPUT.files?.[0];
       if (!file) return;
       try {
@@ -285,6 +291,7 @@ function initHomePlaybackUI() {
 
   if (HOME_LOAD_LOCAL_BUTTON) {
     HOME_LOAD_LOCAL_BUTTON.addEventListener("click", () => {
+      if (homeState.forceDefaultOnly) return;
       const loaded = loadEditsFromLocalStorage();
       if (!loaded || loaded.events.length === 0) {
         setHomePlaybackStatus("no saved edits in localStorage");
@@ -301,8 +308,30 @@ function initHomePlaybackUI() {
   startHomeDefaultAutoload();
 }
 
+function isHomeMobileMode() {
+  if (!IS_HOME) return false;
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
+function applyHomeResponsiveUi() {
+  if (!IS_HOME) return;
+  homeState.forceDefaultOnly = isHomeMobileMode();
+  if (analysisState.ui?.root) {
+    analysisState.ui.root.style.display = homeState.forceDefaultOnly
+      ? "none"
+      : "block";
+  }
+  if (HOME_PANEL) {
+    HOME_PANEL.style.display = homeState.forceDefaultOnly ? "none" : "grid";
+  }
+  if (!homeState.forceDefaultOnly) {
+    positionHomePanelBelowAnalysis();
+  }
+}
+
 function positionHomePanelBelowAnalysis() {
   if (!IS_HOME || !HOME_PANEL) return;
+  if (homeState.forceDefaultOnly) return;
   const analysisRoot = analysisState.ui?.root;
   if (!analysisRoot) return;
   const rect = analysisRoot.getBoundingClientRect();
@@ -362,7 +391,7 @@ function startHomeDefaultAutoload() {
 
   state.timeoutId = window.setTimeout(async () => {
     state.active = false;
-    if (!homeState.hasCustomEdits) {
+    if (homeState.forceDefaultOnly || !homeState.hasCustomEdits) {
       await loadDefaultEditsForHome();
     }
   }, state.durationMs);

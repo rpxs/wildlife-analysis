@@ -10,6 +10,7 @@ const HOME_IMPORT_INPUT = document.querySelector("#home-import-file");
 const HOME_PLAYBACK_STATUS = document.querySelector("#home-playback-status");
 const HOME_LOAD_LOCAL_BUTTON = document.querySelector("#home-load-local-btn");
 const HOME_PANEL = document.querySelector("#home-panel");
+const HOME_MOBILE_START_BUTTON = document.querySelector("#home-mobile-start-btn");
 const EDITOR_PLAY_BUTTON = document.querySelector("#editor-play-btn");
 const EDITOR_RECORD_BUTTON = document.querySelector("#editor-record-btn");
 const EDITOR_CLEAR_BUTTON = document.querySelector("#editor-clear-btn");
@@ -44,6 +45,9 @@ const editState = {
 const homeState = {
   hasCustomEdits: false,
   forceDefaultOnly: false,
+  mobileCameraApplied: false,
+  mobileStartPressed: false,
+  unlockArmed: false,
   defaultAutoload: {
     timeoutId: null,
     intervalId: null,
@@ -259,6 +263,26 @@ function initHomePlaybackUI() {
   applyHomeResponsiveUi();
   window.addEventListener("resize", applyHomeResponsiveUi);
 
+  if (HOME_MOBILE_START_BUTTON) {
+    HOME_MOBILE_START_BUTTON.addEventListener("click", async () => {
+      homeState.mobileStartPressed = true;
+      cancelHomeDefaultAutoload();
+      if (editState.playback.events.length > 0) {
+        const ok = await playShangriLa(true);
+        if (!ok) {
+          setHomePlaybackStatus("audio blocked, tap start again");
+          return;
+        }
+        setHomePlaybackStatus(
+          `playing edits 0/${editState.playback.events.length}`,
+        );
+      } else {
+        await loadDefaultEditsForHome(true);
+      }
+      applyHomeResponsiveUi();
+    });
+  }
+
   if (HOME_IMPORT_BUTTON && HOME_IMPORT_INPUT) {
     HOME_IMPORT_BUTTON.addEventListener("click", () => {
       if (homeState.forceDefaultOnly) return;
@@ -324,8 +348,36 @@ function applyHomeResponsiveUi() {
   if (HOME_PANEL) {
     HOME_PANEL.style.display = homeState.forceDefaultOnly ? "none" : "grid";
   }
+  if (HOME_MOBILE_START_BUTTON) {
+    HOME_MOBILE_START_BUTTON.style.display = homeState.forceDefaultOnly
+      ? "inline-block"
+      : "none";
+  }
   if (!homeState.forceDefaultOnly) {
     positionHomePanelBelowAnalysis();
+  }
+  applyHomeCameraFraming();
+}
+
+function applyHomeCameraFraming() {
+  if (!IS_HOME) return;
+  if (homeState.forceDefaultOnly) {
+    if (!homeState.mobileCameraApplied) {
+      camera.position.set(0, 8.5, 34);
+      controls.target.set(0, 0, 0);
+      camera.lookAt(controls.target);
+      controls.update();
+      homeState.mobileCameraApplied = true;
+    }
+    return;
+  }
+
+  if (homeState.mobileCameraApplied) {
+    camera.position.set(0, 6, 26);
+    controls.target.set(0, 0, 0);
+    camera.lookAt(controls.target);
+    controls.update();
+    homeState.mobileCameraApplied = false;
   }
 }
 
@@ -391,8 +443,17 @@ function startHomeDefaultAutoload() {
 
   state.timeoutId = window.setTimeout(async () => {
     state.active = false;
+    if (state.intervalId != null) {
+      window.clearInterval(state.intervalId);
+      state.intervalId = null;
+    }
+    if (state.countdownEl) {
+      state.countdownEl.style.display = "none";
+    }
     if (homeState.forceDefaultOnly || !homeState.hasCustomEdits) {
-      await loadDefaultEditsForHome();
+      await loadDefaultEditsForHome(
+        !homeState.forceDefaultOnly || homeState.mobileStartPressed,
+      );
     }
   }, state.durationMs);
 }
@@ -413,7 +474,7 @@ function cancelHomeDefaultAutoload() {
   }
 }
 
-async function loadDefaultEditsForHome() {
+async function loadDefaultEditsForHome(autoplay = true) {
   try {
     const res = await fetch("/default.json", { cache: "no-store" });
     if (!res.ok) {
@@ -425,10 +486,16 @@ async function loadDefaultEditsForHome() {
       setHomePlaybackStatus("default.json has no edits");
       return;
     }
-    startEditPlayback(normalized.events, true);
-    setHomePlaybackStatus(
-      `loaded default edit (${normalized.events.length} events)`,
-    );
+    startEditPlayback(normalized.events, autoplay);
+    if (autoplay) {
+      setHomePlaybackStatus(
+        `loaded default edit (${normalized.events.length} events)`,
+      );
+    } else {
+      setHomePlaybackStatus(
+        `default loaded (${normalized.events.length} edits), tap Start`,
+      );
+    }
   } catch (err) {
     console.warn("Could not load default.json:", err);
     setHomePlaybackStatus("default.json not found");
@@ -666,8 +733,36 @@ function startEditPlayback(events, autoplay = true) {
   editState.playback.lastTimeMs = -1;
   editState.playback.active = sorted.length > 0;
   if (autoplay && sorted.length > 0) {
-    void playShangriLa(true);
+    void (async () => {
+      const ok = await playShangriLa(true);
+      if (!ok && IS_HOME) {
+        armHomePlaybackUnlock();
+      }
+    })();
   }
+}
+
+function armHomePlaybackUnlock() {
+  if (!IS_HOME) return;
+  if (homeState.forceDefaultOnly) return;
+  if (homeState.unlockArmed) return;
+  homeState.unlockArmed = true;
+  setHomePlaybackStatus("tap screen to start playback");
+
+  const unlock = async () => {
+    const ok = await playShangriLa(true);
+    if (!ok) return;
+    cleanup();
+  };
+
+  const cleanup = () => {
+    homeState.unlockArmed = false;
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("keydown", unlock);
+  };
+
+  window.addEventListener("pointerdown", unlock);
+  window.addEventListener("keydown", unlock);
 }
 
 function updateEditPlayback() {
@@ -2906,15 +3001,17 @@ function updateFlightVolume() {
 }
 
 async function playShangriLa(reset = true) {
-  if (!audioState.shangri) return;
+  if (!audioState.shangri) return false;
   await ensureAudioAnalysisGraph();
   if (reset) {
     audioState.shangri.currentTime = 0;
   }
   try {
     await audioState.shangri.play();
+    return true;
   } catch (err) {
     console.warn("Could not start shangri-la.mp3 playback:", err);
+    return false;
   }
 }
 

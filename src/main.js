@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 const APP = document.querySelector("#app");
 const DIRECTION_BUTTON = document.querySelector("#direction-toggle");
+const CAPTURE_BUTTON = document.querySelector("#capture-photo");
 const COLOR_MODE_LABEL = document.querySelector("#color-mode-label");
 
 let travelDirection = 1;
@@ -10,6 +11,7 @@ let birdSystem = null;
 let linesVisible = false;
 let introSystem = null;
 let sceneTime = 0;
+let captureInProgress = false;
 const COLOR_MODES = ["infection", "family", "rainbow"];
 let colorModeIndex = 0;
 const audioState = {
@@ -85,6 +87,12 @@ if (DIRECTION_BUTTON) {
   setDirectionButtonLabel();
   DIRECTION_BUTTON.addEventListener("click", () => {
     toggleTravelDirection();
+  });
+}
+
+if (CAPTURE_BUTTON) {
+  CAPTURE_BUTTON.addEventListener("click", () => {
+    captureSquarePhoto();
   });
 }
 
@@ -181,6 +189,97 @@ function updateColorModeIndicator() {
 }
 
 updateColorModeIndicator();
+
+async function captureSquarePhoto() {
+  if (captureInProgress) return;
+  if (!renderer || !camera || !scene) return;
+  captureInProgress = true;
+  if (CAPTURE_BUTTON) CAPTURE_BUTTON.disabled = true;
+
+  const prevSize = new THREE.Vector2();
+  renderer.getSize(prevSize);
+  const prevPixelRatio = renderer.getPixelRatio();
+  const prevAspect = camera.aspect;
+
+  try {
+    const base = clamp(
+      Math.round(Math.max(prevSize.x, prevSize.y) * 2),
+      2048,
+      4096,
+    );
+    let captureW = base;
+    let captureH = base;
+    if (prevSize.x >= prevSize.y) {
+      captureH = Math.max(1, Math.round(base * (prevSize.y / prevSize.x)));
+    } else {
+      captureW = Math.max(1, Math.round(base * (prevSize.x / prevSize.y)));
+    }
+
+    renderer.setPixelRatio(1);
+    renderer.setSize(captureW, captureH, false);
+    camera.aspect = captureW / captureH;
+    camera.updateProjectionMatrix();
+    if (!cameraRig.active) controls.update();
+    renderer.render(scene, camera);
+
+    const squareSize = Math.min(captureW, captureH);
+    const outCanvas = document.createElement("canvas");
+    outCanvas.width = squareSize;
+    outCanvas.height = squareSize;
+    const ctx = outCanvas.getContext("2d");
+    if (!ctx) throw new Error("Could not create capture canvas context");
+
+    const sx = Math.floor((captureW - squareSize) * 0.5);
+    const sy = Math.floor((captureH - squareSize) * 0.5);
+    ctx.drawImage(
+      renderer.domElement,
+      sx,
+      sy,
+      squareSize,
+      squareSize,
+      0,
+      0,
+      squareSize,
+      squareSize,
+    );
+
+    const blob = await new Promise((resolve) =>
+      outCanvas.toBlob(resolve, "image/png"),
+    );
+    if (!blob) throw new Error("Could not encode captured image");
+
+    const stamp = formatCaptureStamp(new Date());
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wildlife-capture-${stamp}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    console.warn("Capture failed:", err);
+  } finally {
+    renderer.setPixelRatio(prevPixelRatio);
+    renderer.setSize(prevSize.x, prevSize.y, false);
+    camera.aspect = prevAspect;
+    camera.updateProjectionMatrix();
+    if (!cameraRig.active) controls.update();
+    renderer.render(scene, camera);
+    captureInProgress = false;
+    if (CAPTURE_BUTTON) CAPTURE_BUTTON.disabled = false;
+  }
+}
+
+function formatCaptureStamp(date) {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, "0");
+  const d = `${date.getDate()}`.padStart(2, "0");
+  const hh = `${date.getHours()}`.padStart(2, "0");
+  const mm = `${date.getMinutes()}`.padStart(2, "0");
+  const ss = `${date.getSeconds()}`.padStart(2, "0");
+  return `${y}${m}${d}-${hh}${mm}${ss}`;
+}
 
 function cycleCameraRigPreset() {
   if (CAMERA_PRESETS.length === 0) return;

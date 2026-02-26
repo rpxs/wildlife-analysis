@@ -28,12 +28,18 @@
       }
       .ui-btn:hover { background: rgba(255,255,255,0.12); }
       .ui-btn:active { transform: translateY(1px); }
+      .capture-btn {
+        top: 54px;
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <button id="direction-toggle" class="ui-btn" type="button">
       Direction: CW
+    </button>
+    <button id="capture-photo" class="ui-btn capture-btn" type="button">
+      Capture 1:1
     </button>
     <div class="hud">space | H: color mode | J: trees | B: scatter 3d | V: cinema | K: shapes | G: music | mode: <span id="color-mode-label" class="mode-label">infection</span></div>
     <script type="module" src="/src/main.js"></script>

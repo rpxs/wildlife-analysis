@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>wildlife editor</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      #app { width: 100%; height: 100%; }
+      .hud {
+        position: fixed; left: 12px; bottom: 12px; color: rgba(255,255,255,0.75);
+        font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        user-select: none; pointer-events: none;
+      }
+      .mode-label { color: #4da8ff; }
+      .ui-btn {
+        position: fixed;
+        right: 12px;
+        z-index: 10;
+        border: 1px solid rgba(255,255,255,0.28);
+        background: rgba(0,0,0,0.55);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        cursor: pointer;
+      }
+      .ui-btn:hover { background: rgba(255,255,255,0.12); }
+      .ui-btn:active { transform: translateY(1px); }
+      .dir-btn { top: 12px; }
+      .capture-btn { top: 54px; }
+      .editor-panel {
+        position: fixed;
+        right: 12px;
+        top: 96px;
+        z-index: 14;
+        width: 360px;
+        max-height: calc(100vh - 120px);
+        overflow: auto;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(0,0,0,0.56);
+        border-radius: 10px;
+        padding: 10px;
+        color: rgba(255,255,255,0.9);
+        font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .editor-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .editor-title a {
+        color: #8dc5ff;
+        text-decoration: none;
+      }
+      .editor-title a:hover { text-decoration: underline; }
+      .editor-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .editor-actions button {
+        border: 1px solid rgba(255,255,255,0.28);
+        background: rgba(0,0,0,0.5);
+        color: #fff;
+        padding: 5px 8px;
+        border-radius: 7px;
+        cursor: pointer;
+        font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .editor-actions button:hover { background: rgba(255,255,255,0.1); }
+      .editor-subtitle {
+        margin: 0 0 8px 0;
+        color: rgba(255,255,255,0.82);
+      }
+      .editor-block {
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 8px;
+        padding: 8px;
+        margin-bottom: 8px;
+        background: rgba(0,0,0,0.28);
+      }
+      .editor-block-title {
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .editor-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .editor-row input,
+      .editor-row select,
+      .editor-row button {
+        border: 1px solid rgba(255,255,255,0.25);
+        background: rgba(0,0,0,0.5);
+        color: #fff;
+        border-radius: 6px;
+        padding: 4px 6px;
+        font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .editor-row input[type="number"] {
+        width: 84px;
+      }
+      .editor-song-name {
+        margin-top: 6px;
+        color: rgba(255,255,255,0.78);
+      }
+      .trigger-list {
+        display: grid;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .trigger-item {
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 7px;
+        padding: 6px;
+        background: rgba(0,0,0,0.36);
+      }
+      .trigger-item-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+        align-items: center;
+      }
+      .trigger-item-meta {
+        color: rgba(255,255,255,0.78);
+        margin-top: 4px;
+      }
+      .trigger-empty {
+        color: rgba(255,255,255,0.68);
+      }
+      #editor-status {
+        color: rgba(255,255,255,0.78);
+        margin-bottom: 8px;
+      }
+      #editor-timeline {
+        margin: 0;
+        white-space: pre;
+        background: rgba(0,0,0,0.36);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px;
+        padding: 8px;
+        max-height: 45vh;
+        overflow: auto;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/main-BU8EV0Oi.js"></script>
+  </head>
+  <body data-page="editor">
+    <div id="app"></div>
+
+    <button id="direction-toggle" class="ui-btn dir-btn" type="button">
+      direction: cw
+    </button>
+    <button id="capture-photo" class="ui-btn capture-btn" type="button">
+      capture 1:1
+    </button>
+
+    <aside class="editor-panel">
+      <div class="editor-title">
+        <strong id="editor-title-text">editor</strong>
+        <a href="/">open player</a>
+      </div>
+      <p class="editor-subtitle">load a song, then record keys and build hz triggers.</p>
+
+      <section class="editor-block">
+        <div class="editor-block-title">song</div>
+        <div class="editor-row">
+          <button id="editor-song-upload-btn" type="button">upload song</button>
+          <button id="editor-song-reset-btn" type="button">use default song</button>
+          <button id="editor-play-btn" type="button">play from start</button>
+        </div>
+        <input id="editor-song-file" type="file" accept="audio/*" hidden />
+        <div id="editor-song-name" class="editor-song-name">song: shangri-la.mp3 (default)</div>
+      </section>
+
+      <div class="editor-actions">
+        <button id="editor-record-btn" type="button">start recording</button>
+        <button id="editor-clear-btn" type="button">clear</button>
+        <button id="editor-save-local-btn" type="button">save local</button>
+        <button id="editor-load-local-btn" type="button">load local</button>
+        <button id="editor-export-btn" type="button">export json</button>
+        <button id="editor-import-btn" type="button">import json</button>
+      </div>
+      <input id="editor-import-file" type="file" accept=".json,application/json" hidden />
+
+      <section class="editor-block">
+        <div class="editor-block-title">hz triggers</div>
+        <div class="editor-row">
+          <select id="editor-trigger-source">
+            <option value="dominant">dominant hz</option>
+            <option value="middle_peak">middle peak hz (top5 #3)</option>
+            <option value="presence">presence band energy</option>
+          </select>
+          <input id="editor-trigger-hz" type="number" min="1" max="22050" step="1" value="1336" />
+          <input id="editor-trigger-tolerance" type="number" min="0.5" max="2000" step="0.5" value="7" />
+        </div>
+        <div class="editor-row" style="margin-top:6px;">
+          <select id="editor-trigger-mode">
+            <option value="enter">enter window</option>
+            <option value="enter_up">enter window going up</option>
+            <option value="enter_down">enter window going down</option>
+            <option value="cross_up">cross up over hz</option>
+            <option value="cross_down">cross down under hz</option>
+          </select>
+          <select id="editor-trigger-action">
+            <option value="toggle_direction">toggle direction</option>
+            <option value="color_change">color change</option>
+            <option value="toggle_lines">toggle lines + reroute</option>
+            <option value="toggle_trees">toggle trees</option>
+            <option value="toggle_scatter">toggle scatter</option>
+            <option value="cycle_shape">cycle shape</option>
+            <option value="cycle_camera">cycle camera</option>
+            <option value="cycle_color_mode">cycle color mode</option>
+            <option value="restart_text">restart center text</option>
+            <option value="middle_peak_y_rot">y-rotation pulse</option>
+          </select>
+          <input id="editor-trigger-cooldown" type="number" min="0" max="10000" step="10" value="120" />
+          <button id="editor-trigger-add-btn" type="button">add trigger</button>
+        </div>
+        <div id="editor-trigger-list" class="trigger-list"></div>
+      </section>
+
+      <div id="editor-status">ready</div>
+      <pre id="editor-timeline">no edits yet.</pre>
+    </aside>
+
+    <div class="hud">Space | H: color mode | J: trees | B: scatter 3d | V: cinema | K: shapes | G: music | mode: <span id="color-mode-label" class="mode-label">infection</span></div>
+  </body>
+</html>

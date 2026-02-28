@@ -1,0 +1,1593 @@
+{
+  "version": 1,
+  "audio": "/shangri-la.mp3",
+  "createdAt": "2026-02-26T18:25:51.141Z",
+  "events": [
+    {
+      "atMs": 8754,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 13264,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 18661,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 23162,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 29132,
+      "key": "KeyH"
+    },
+    {
+      "atMs": 31033,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 38104,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 41199,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 43011,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 50213,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 52425,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 54063,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 55571,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 57731,
+      "key": "Space"
+    },
+    {
+      "atMs": 58171,
+      "key": "Space"
+    },
+    {
+      "atMs": 58654,
+      "key": "Space"
+    },
+    {
+      "atMs": 59121,
+      "key": "Space"
+    },
+    {
+      "atMs": 59562,
+      "key": "Space"
+    },
+    {
+      "atMs": 60034,
+      "key": "Space"
+    },
+    {
+      "atMs": 60453,
+      "key": "Space"
+    },
+    {
+      "atMs": 60874,
+      "key": "Space"
+    },
+    {
+      "atMs": 61315,
+      "key": "Space"
+    },
+    {
+      "atMs": 61543,
+      "key": "Space"
+    },
+    {
+      "atMs": 61809,
+      "key": "Space"
+    },
+    {
+      "atMs": 62012,
+      "key": "Space"
+    },
+    {
+      "atMs": 62264,
+      "key": "Space"
+    },
+    {
+      "atMs": 62441,
+      "key": "Space"
+    },
+    {
+      "atMs": 62671,
+      "key": "Space"
+    },
+    {
+      "atMs": 62874,
+      "key": "Space"
+    },
+    {
+      "atMs": 63074,
+      "key": "Space"
+    },
+    {
+      "atMs": 63303,
+      "key": "Space"
+    },
+    {
+      "atMs": 63521,
+      "key": "Space"
+    },
+    {
+      "atMs": 63814,
+      "key": "Space"
+    },
+    {
+      "atMs": 64044,
+      "key": "Space"
+    },
+    {
+      "atMs": 64241,
+      "key": "Space"
+    },
+    {
+      "atMs": 64473,
+      "key": "Space"
+    },
+    {
+      "atMs": 64653,
+      "key": "Space"
+    },
+    {
+      "atMs": 64853,
+      "key": "Space"
+    },
+    {
+      "atMs": 65274,
+      "key": "Space"
+    },
+    {
+      "atMs": 65744,
+      "key": "Space"
+    },
+    {
+      "atMs": 66162,
+      "key": "Space"
+    },
+    {
+      "atMs": 66583,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 68422,
+      "key": "Space"
+    },
+    {
+      "atMs": 68603,
+      "key": "Space"
+    },
+    {
+      "atMs": 68801,
+      "key": "Space"
+    },
+    {
+      "atMs": 69094,
+      "key": "Space"
+    },
+    {
+      "atMs": 69323,
+      "key": "Space"
+    },
+    {
+      "atMs": 69523,
+      "key": "Space"
+    },
+    {
+      "atMs": 69753,
+      "key": "Space"
+    },
+    {
+      "atMs": 69973,
+      "key": "Space"
+    },
+    {
+      "atMs": 71024,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 73514,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 74634,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 75572,
+      "key": "Space"
+    },
+    {
+      "atMs": 75773,
+      "key": "Space"
+    },
+    {
+      "atMs": 75983,
+      "key": "Space"
+    },
+    {
+      "atMs": 76185,
+      "key": "Space"
+    },
+    {
+      "atMs": 76382,
+      "key": "Space"
+    },
+    {
+      "atMs": 76593,
+      "key": "Space"
+    },
+    {
+      "atMs": 76812,
+      "key": "Space"
+    },
+    {
+      "atMs": 77023,
+      "key": "Space"
+    },
+    {
+      "atMs": 77282,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 78994,
+      "key": "Space"
+    },
+    {
+      "atMs": 79435,
+      "key": "Space"
+    },
+    {
+      "atMs": 79902,
+      "key": "Space"
+    },
+    {
+      "atMs": 80361,
+      "key": "Space"
+    },
+    {
+      "atMs": 80803,
+      "key": "Space"
+    },
+    {
+      "atMs": 81232,
+      "key": "Space"
+    },
+    {
+      "atMs": 81694,
+      "key": "Space"
+    },
+    {
+      "atMs": 82094,
+      "key": "Space"
+    },
+    {
+      "atMs": 82515,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 84323,
+      "key": "Space"
+    },
+    {
+      "atMs": 84772,
+      "key": "Space"
+    },
+    {
+      "atMs": 85211,
+      "key": "Space"
+    },
+    {
+      "atMs": 85635,
+      "key": "Space"
+    },
+    {
+      "atMs": 86053,
+      "key": "KeyH"
+    },
+    {
+      "atMs": 86491,
+      "key": "Space"
+    },
+    {
+      "atMs": 86961,
+      "key": "Space"
+    },
+    {
+      "atMs": 87403,
+      "key": "Space"
+    },
+    {
+      "atMs": 87841,
+      "key": "Space"
+    },
+    {
+      "atMs": 88293,
+      "key": "Space"
+    },
+    {
+      "atMs": 88732,
+      "key": "Space"
+    },
+    {
+      "atMs": 89173,
+      "key": "Space"
+    },
+    {
+      "atMs": 89643,
+      "key": "Space"
+    },
+    {
+      "atMs": 90080,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 90613,
+      "key": "Space"
+    },
+    {
+      "atMs": 90961,
+      "key": "Space"
+    },
+    {
+      "atMs": 91432,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 91893,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 92314,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 94040,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 95422,
+      "key": "Space"
+    },
+    {
+      "atMs": 95843,
+      "key": "Space"
+    },
+    {
+      "atMs": 96673,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 98075,
+      "key": "Space"
+    },
+    {
+      "atMs": 98493,
+      "key": "Space"
+    },
+    {
+      "atMs": 98852,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 100104,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 101843,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 103834,
+      "key": "Space"
+    },
+    {
+      "atMs": 104252,
+      "key": "Space"
+    },
+    {
+      "atMs": 104635,
+      "key": "Space"
+    },
+    {
+      "atMs": 104812,
+      "key": "Space"
+    },
+    {
+      "atMs": 105040,
+      "key": "Space"
+    },
+    {
+      "atMs": 105553,
+      "key": "Space"
+    },
+    {
+      "atMs": 105793,
+      "key": "Space"
+    },
+    {
+      "atMs": 106022,
+      "key": "Space"
+    },
+    {
+      "atMs": 106223,
+      "key": "Space"
+    },
+    {
+      "atMs": 106433,
+      "key": "Space"
+    },
+    {
+      "atMs": 106652,
+      "key": "Space"
+    },
+    {
+      "atMs": 106861,
+      "key": "Space"
+    },
+    {
+      "atMs": 107755,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 109203,
+      "key": "Space"
+    },
+    {
+      "atMs": 109401,
+      "key": "Space"
+    },
+    {
+      "atMs": 109653,
+      "key": "Space"
+    },
+    {
+      "atMs": 109874,
+      "key": "Space"
+    },
+    {
+      "atMs": 110083,
+      "key": "Space"
+    },
+    {
+      "atMs": 110330,
+      "key": "Space"
+    },
+    {
+      "atMs": 110904,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 112082,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 113075,
+      "key": "Space"
+    },
+    {
+      "atMs": 113313,
+      "key": "Space"
+    },
+    {
+      "atMs": 113522,
+      "key": "Space"
+    },
+    {
+      "atMs": 113853,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 114492,
+      "key": "Space"
+    },
+    {
+      "atMs": 116224,
+      "key": "Space"
+    },
+    {
+      "atMs": 116425,
+      "key": "Space"
+    },
+    {
+      "atMs": 116653,
+      "key": "Space"
+    },
+    {
+      "atMs": 116892,
+      "key": "Space"
+    },
+    {
+      "atMs": 117103,
+      "key": "Space"
+    },
+    {
+      "atMs": 117304,
+      "key": "Space"
+    },
+    {
+      "atMs": 118072,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 118883,
+      "key": "Space"
+    },
+    {
+      "atMs": 119133,
+      "key": "Space"
+    },
+    {
+      "atMs": 119353,
+      "key": "Space"
+    },
+    {
+      "atMs": 119603,
+      "key": "Space"
+    },
+    {
+      "atMs": 119783,
+      "key": "Space"
+    },
+    {
+      "atMs": 120012,
+      "key": "Space"
+    },
+    {
+      "atMs": 120213,
+      "key": "Space"
+    },
+    {
+      "atMs": 120424,
+      "key": "Space"
+    },
+    {
+      "atMs": 120602,
+      "key": "Space"
+    },
+    {
+      "atMs": 120802,
+      "key": "Space"
+    },
+    {
+      "atMs": 121533,
+      "key": "Space"
+    },
+    {
+      "atMs": 121972,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 122395,
+      "key": "Space"
+    },
+    {
+      "atMs": 123185,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 123502,
+      "key": "Space"
+    },
+    {
+      "atMs": 124314,
+      "key": "Space"
+    },
+    {
+      "atMs": 124731,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 125893,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 127721,
+      "key": "KeyH"
+    },
+    {
+      "atMs": 128601,
+      "key": "Space"
+    },
+    {
+      "atMs": 129051,
+      "key": "Space"
+    },
+    {
+      "atMs": 129492,
+      "key": "Space"
+    },
+    {
+      "atMs": 129892,
+      "key": "Space"
+    },
+    {
+      "atMs": 130291,
+      "key": "KeyH"
+    },
+    {
+      "atMs": 130824,
+      "key": "Space"
+    },
+    {
+      "atMs": 131330,
+      "key": "Space"
+    },
+    {
+      "atMs": 131752,
+      "key": "Space"
+    },
+    {
+      "atMs": 132172,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 132571,
+      "key": "Space"
+    },
+    {
+      "atMs": 132731,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 133065,
+      "key": "Space"
+    },
+    {
+      "atMs": 133393,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 133584,
+      "key": "Space"
+    },
+    {
+      "atMs": 133915,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 134534,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 134693,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 134853,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 135033,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 135172,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 135372,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 135542,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 135724,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 136121,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 136540,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 137004,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 137341,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 137932,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 138353,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 138841,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 139134,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 139662,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 140103,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 140594,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 140904,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 141041,
+      "key": "Space"
+    },
+    {
+      "atMs": 141465,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 141923,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 142083,
+      "key": "Space"
+    },
+    {
+      "atMs": 142315,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 142443,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 142614,
+      "key": "Space"
+    },
+    {
+      "atMs": 143120,
+      "key": "Space"
+    },
+    {
+      "atMs": 143541,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 143633,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 143903,
+      "key": "Space"
+    },
+    {
+      "atMs": 144013,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 144504,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 144573,
+      "key": "Space"
+    },
+    {
+      "atMs": 144912,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 145313,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 145383,
+      "key": "Space"
+    },
+    {
+      "atMs": 145694,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 145813,
+      "key": "Space"
+    },
+    {
+      "atMs": 146315,
+      "key": "KeyH"
+    },
+    {
+      "atMs": 146591,
+      "key": "Space"
+    },
+    {
+      "atMs": 146675,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 146773,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 146782,
+      "key": "KeyL"
+    },
+    {
+      "atMs": 146875,
+      "key": "Space"
+    },
+    {
+      "atMs": 147171,
+      "key": "Space"
+    },
+    {
+      "atMs": 147261,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 147639,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 147732,
+      "key": "Space"
+    },
+    {
+      "atMs": 148062,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 148094,
+      "key": "Space"
+    },
+    {
+      "atMs": 148454,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 148503,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 148573,
+      "key": "Space"
+    },
+    {
+      "atMs": 148872,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 148982,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 149341,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 149763,
+      "key": "Space"
+    },
+    {
+      "atMs": 150224,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 150652,
+      "key": "Space"
+    },
+    {
+      "atMs": 150761,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 151191,
+      "key": "Space"
+    },
+    {
+      "atMs": 151603,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 151922,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 152064,
+      "key": "Space"
+    },
+    {
+      "atMs": 152503,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 152854,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 153345,
+      "key": "Space"
+    },
+    {
+      "atMs": 153464,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 153794,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 154282,
+      "key": "Space"
+    },
+    {
+      "atMs": 154640,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 155103,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 155552,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 156035,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 156500,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 156923,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 156972,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 157321,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 157733,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 158153,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 158465,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 158755,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 159173,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 159594,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 160012,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 160412,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 160731,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 160996,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 161393,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 161843,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 162221,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 162554,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 162781,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 163155,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 163556,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 164043,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 164203,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 164473,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 164894,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 165254,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 165343,
+      "key": "Space"
+    },
+    {
+      "atMs": 165483,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 165715,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 165892,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 166313,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 166673,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 166783,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 167163,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 167503,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 167634,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 167931,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 168115,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 168115,
+      "key": "Space"
+    },
+    {
+      "atMs": 168362,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 168522,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 168635,
+      "key": "Space"
+    },
+    {
+      "atMs": 168882,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 169041,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 169224,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 169341,
+      "key": "Space"
+    },
+    {
+      "atMs": 169482,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 169755,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 169863,
+      "key": "Space"
+    },
+    {
+      "atMs": 170032,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 170162,
+      "key": "Space"
+    },
+    {
+      "atMs": 170281,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 170443,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 170623,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 170733,
+      "key": "Space"
+    },
+    {
+      "atMs": 171093,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 171234,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 171463,
+      "key": "Space"
+    },
+    {
+      "atMs": 171572,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 171674,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 171761,
+      "key": "Space"
+    },
+    {
+      "atMs": 171923,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 172042,
+      "key": "Space"
+    },
+    {
+      "atMs": 172222,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 172250,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 172414,
+      "key": "Space"
+    },
+    {
+      "atMs": 172521,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 172652,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 172745,
+      "key": "Space"
+    },
+    {
+      "atMs": 172812,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 173322,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 173465,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 173582,
+      "key": "Space"
+    },
+    {
+      "atMs": 173732,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 173874,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 173970,
+      "key": "Space"
+    },
+    {
+      "atMs": 174155,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 174272,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 174362,
+      "key": "Space"
+    },
+    {
+      "atMs": 174504,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 174621,
+      "key": "Space"
+    },
+    {
+      "atMs": 174713,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 175076,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 175212,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 175282,
+      "key": "Space"
+    },
+    {
+      "atMs": 175363,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 175453,
+      "key": "Space"
+    },
+    {
+      "atMs": 175554,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 175633,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 175761,
+      "key": "Space"
+    },
+    {
+      "atMs": 175833,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 175923,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 176072,
+      "key": "Space"
+    },
+    {
+      "atMs": 176143,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 176274,
+      "key": "Space"
+    },
+    {
+      "atMs": 176321,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 176879,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 177000,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 177064,
+      "key": "Space"
+    },
+    {
+      "atMs": 177203,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 177212,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 177311,
+      "key": "Space"
+    },
+    {
+      "atMs": 177402,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 177801,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 177964,
+      "key": "Space"
+    },
+    {
+      "atMs": 178103,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 178289,
+      "key": "Space"
+    },
+    {
+      "atMs": 178373,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 178561,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 178675,
+      "key": "Space"
+    },
+    {
+      "atMs": 178762,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 178863,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 178933,
+      "key": "Space"
+    },
+    {
+      "atMs": 179023,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 179052,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 179154,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 179180,
+      "key": "Space"
+    },
+    {
+      "atMs": 179493,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 179635,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 179743,
+      "key": "Space"
+    },
+    {
+      "atMs": 179812,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 179852,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 180074,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 180323,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 180514,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 180555,
+      "key": "Space"
+    },
+    {
+      "atMs": 180744,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 180881,
+      "key": "KeyH"
+    },
+    {
+      "atMs": 180953,
+      "key": "Space"
+    },
+    {
+      "atMs": 181132,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 181182,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 181275,
+      "key": "Space"
+    },
+    {
+      "atMs": 181522,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 181923,
+      "key": "Space"
+    },
+    {
+      "atMs": 181933,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 182094,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 182163,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 182233,
+      "key": "Space"
+    },
+    {
+      "atMs": 182332,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 182474,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 182674,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 183052,
+      "key": "Space"
+    },
+    {
+      "atMs": 183144,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 183481,
+      "key": "KeyV"
+    },
+    {
+      "atMs": 183994,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 184759,
+      "key": "KeyB"
+    },
+    {
+      "atMs": 184881,
+      "key": "KeyK"
+    },
+    {
+      "atMs": 184944,
+      "key": "Space"
+    },
+    {
+      "atMs": 185304,
+      "key": "KeyB"
+    }
+  ],
+  "triggers": [
+    {
+      "source": "dominant",
+      "hz": 1336,
+      "tolerance": 7,
+      "mode": "enter",
+      "action": "toggle_direction",
+      "cooldownMs": 120
+    },
+    {
+      "source": "dominant",
+      "hz": 47,
+      "tolerance": 4,
+      "mode": "enter_down",
+      "action": "color_change",
+      "cooldownMs": 120
+    },
+    {
+      "source": "middle_peak",
+      "hz": 270,
+      "tolerance": 3,
+      "mode": "cross_down",
+      "action": "middle_peak_y_rot",
+      "cooldownMs": 120
+    }
+  ]
+}

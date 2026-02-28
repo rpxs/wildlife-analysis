@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>wildlife editor tutorial</title>
+    <style>
+      :root {
+        --bg-0: #05070c;
+        --bg-1: #0e1422;
+        --panel: rgba(11, 16, 28, 0.74);
+        --panel-border: rgba(171, 221, 255, 0.22);
+        --text: #e8f1ff;
+        --muted: #9fb4ca;
+        --accent: #77d2ff;
+        --accent-2: #7bffa3;
+        --warn: #ffd27a;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body {
+        min-height: 100vh;
+        color: var(--text);
+        background:
+          radial-gradient(1000px 600px at 85% -100px, rgba(119, 210, 255, 0.2), transparent 65%),
+          radial-gradient(700px 500px at -20% 20%, rgba(123, 255, 163, 0.18), transparent 70%),
+          linear-gradient(180deg, var(--bg-1), var(--bg-0) 45%);
+        font: 16px/1.5 "Trebuchet MS", "Lucida Sans Unicode", "Segoe UI", sans-serif;
+      }
+
+      .grid-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(146, 199, 255, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(146, 199, 255, 0.06) 1px, transparent 1px);
+        background-size: 30px 30px;
+        mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), transparent 100%);
+      }
+
+      .shell {
+        position: relative;
+        z-index: 1;
+        width: min(1100px, calc(100% - 32px));
+        margin: 20px auto 52px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .links {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--panel-border);
+        background: rgba(7, 12, 22, 0.66);
+        color: var(--text);
+        text-decoration: none;
+        font: 13px/1.2 "Trebuchet MS", "Lucida Sans Unicode", sans-serif;
+      }
+
+      .chip:hover { border-color: rgba(119, 210, 255, 0.55); }
+
+      .hero {
+        border: 1px solid var(--panel-border);
+        border-radius: 18px;
+        padding: 24px;
+        background:
+          linear-gradient(135deg, rgba(26, 44, 77, 0.6), rgba(9, 16, 28, 0.78)),
+          var(--panel);
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.4);
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font: 700 40px/1 "Impact", "Arial Narrow", "Franklin Gothic Medium", sans-serif;
+        letter-spacing: 0.03em;
+        text-transform: lowercase;
+      }
+
+      .lead {
+        margin: 0;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .callout {
+        margin-top: 16px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(123, 255, 163, 0.35);
+        background: rgba(14, 34, 24, 0.45);
+        color: #d9ffe6;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 14px;
+      }
+
+      .toc {
+        position: sticky;
+        top: 14px;
+        align-self: start;
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+        background: var(--panel);
+        padding: 12px;
+      }
+
+      .toc h2 {
+        margin: 0 0 8px;
+        font: 700 13px/1.2 "Trebuchet MS", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+      }
+
+      .toc a {
+        display: block;
+        color: var(--muted);
+        text-decoration: none;
+        padding: 6px 8px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .toc a:hover { background: rgba(119, 210, 255, 0.12); color: var(--text); }
+
+      .content {
+        display: grid;
+        gap: 12px;
+      }
+
+      .card {
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+        background: var(--panel);
+        padding: 16px;
+      }
+
+      h3 {
+        margin: 0 0 10px;
+        font: 700 20px/1.2 "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
+        text-transform: lowercase;
+        color: var(--text);
+      }
+
+      p { margin: 0 0 10px; color: var(--muted); }
+      ul, ol { margin: 0 0 0 20px; padding: 0; color: var(--muted); }
+      li { margin: 5px 0; }
+
+      .kbd {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(0, 0, 0, 0.34);
+        color: #fff;
+        font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .metric {
+        border-radius: 10px;
+        border: 1px solid rgba(119, 210, 255, 0.28);
+        background: rgba(13, 24, 41, 0.58);
+        padding: 10px;
+        margin: 8px 0;
+      }
+
+      .metric strong { color: var(--accent); }
+      .metric .warn { color: var(--warn); }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: 10px;
+      }
+
+      th, td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 10px 9px;
+        text-align: left;
+        vertical-align: top;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      th {
+        color: var(--text);
+        background: rgba(119, 210, 255, 0.12);
+      }
+
+      code {
+        font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: #dff7ff;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        padding: 2px 6px;
+      }
+
+      .footer-note {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      @media (max-width: 920px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .toc {
+          position: static;
+        }
+        h1 { font-size: 32px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid-overlay" aria-hidden="true"></div>
+
+    <div class="shell">
+      <header class="topbar">
+        <div class="links">
+          <a class="chip" href="/">open player</a>
+          <a class="chip" href="/editor.html">open editor</a>
+          <a class="chip" href="/editor">open editor route</a>
+        </div>
+      </header>
+
+      <section class="hero">
+        <h1>wildlife editor tutorial</h1>
+        <p class="lead">
+          practical workflow for building reactive edits with keyframes + hz triggers.
+        </p>
+        <p class="callout">
+          your workflow anchor: while editing, focus on <strong>top peaks</strong>, <strong>presence band energy</strong> (hi-hats),
+          and <strong>dominant frequency</strong>. those three tell you most of what you need for reliable trigger timing.
+        </p>
+      </section>
+
+      <div class="layout">
+        <nav class="toc">
+          <h2>on this page</h2>
+          <a href="#quick-start">quick start</a>
+          <a href="#visualizer-reading">reading the visualizer</a>
+          <a href="#trigger-recipes">trigger recipes</a>
+          <a href="#mode-guide">trigger mode guide</a>
+          <a href="#editing-rhythm">editing rhythm</a>
+          <a href="#key-actions">key action map</a>
+          <a href="#export-playback">export + playback</a>
+          <a href="#troubleshooting">troubleshooting</a>
+        </nav>
+
+        <main class="content">
+          <section class="card" id="quick-start">
+            <h3>quick start</h3>
+            <ol>
+              <li>open <a class="chip" href="/editor.html">/editor.html</a>.</li>
+              <li>click <code>upload song</code> or keep the default track.</li>
+              <li>click <code>play from start</code> once to reset state + colors.</li>
+              <li>use <code>start recording</code> and perform key actions in time.</li>
+              <li>add hz triggers for repeated moments you want automated.</li>
+              <li>save/export, then load that json on the player page.</li>
+            </ol>
+          </section>
+
+          <section class="card" id="visualizer-reading">
+            <h3>reading the visualizer (the 3 metrics you care about)</h3>
+
+            <div class="metric">
+              <strong>dominant frequency</strong><br />
+              best for strong tonal events (lead notes, vocal formants, bass roots).
+              use this for direction flips or camera/shape moves that should track obvious tonal hits.
+            </div>
+
+            <div class="metric">
+              <strong>top peaks</strong><br />
+              best for multi-layer moments where one frequency is not enough.
+              if top peaks are stable around repeated zones, use <code>middle peak hz</code> trigger source for consistency.
+            </div>
+
+            <div class="metric">
+              <strong>presence band energy</strong> (hi-hats / brightness)<br />
+              use this when hats and bright percussion define rhythm more than pitch.
+              great for line toggles, color changes, or subtle rotation pulses.
+              <span class="warn">tip: presence values are energy, not hz.</span>
+            </div>
+          </section>
+
+          <section class="card" id="trigger-recipes">
+            <h3>trigger recipes you can start with</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>goal</th>
+                  <th>source + mode</th>
+                  <th>starting values</th>
+                  <th>action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>flip direction on strong tonal stab</td>
+                  <td><code>dominant hz</code> + <code>enter</code></td>
+                  <td><code>hz 1336</code>, <code>tol 7</code>, <code>cooldown 120ms</code></td>
+                  <td><code>toggle direction</code></td>
+                </tr>
+                <tr>
+                  <td>react to hats/build-up texture</td>
+                  <td><code>presence band energy</code> + <code>enter_up</code></td>
+                  <td><code>threshold 0.0200</code>, <code>tol 0.0100</code>, <code>cooldown 80-140ms</code></td>
+                  <td><code>toggle lines + reroute</code> or <code>color change</code></td>
+                </tr>
+                <tr>
+                  <td>trigger on downward spectral sweep</td>
+                  <td><code>middle peak hz</code> + <code>cross_down</code></td>
+                  <td><code>hz 270</code>, <code>tol 3</code>, <code>cooldown 120ms</code></td>
+                  <td><code>y-rotation pulse</code></td>
+                </tr>
+                <tr>
+                  <td>camera transitions on chorus entrance</td>
+                  <td><code>dominant hz</code> + <code>cross_up</code></td>
+                  <td>pick repeated crossing point from chorus, <code>cooldown 300-600ms</code></td>
+                  <td><code>cycle camera</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="card" id="mode-guide">
+            <h3>trigger mode guide</h3>
+            <ul>
+              <li><code>enter window</code>: fires once when value enters target ± tolerance, any direction.</li>
+              <li><code>enter window going up</code>: same, but only while rising.</li>
+              <li><code>enter window going down</code>: same, but only while falling.</li>
+              <li><code>cross up over hz</code>: fires when value crosses up through threshold.</li>
+              <li><code>cross down under hz</code>: fires when value crosses down through threshold.</li>
+            </ul>
+          </section>
+
+          <section class="card" id="editing-rhythm">
+            <h3>editing rhythm that stays stable</h3>
+            <ol>
+              <li>record manual keys first for the important scene beats.</li>
+              <li>add triggers only for repeated motifs (hats, recurring tonal notes, drops).</li>
+              <li>start with wider tolerance, then tighten until false-fires disappear.</li>
+              <li>increase cooldown if a trigger chatters too much.</li>
+              <li>replay from start after every 2-3 new triggers and inspect trigger fire counts.</li>
+            </ol>
+          </section>
+
+          <section class="card" id="key-actions">
+            <h3>key action map</h3>
+            <p>these can be recorded manually and also called by triggers:</p>
+            <ul>
+              <li><span class="kbd">Space</span>: toggle lines + randomize connections</li>
+              <li><span class="kbd">H</span>: cycle color mode</li>
+              <li><span class="kbd">J</span>: toggle trees/grass</li>
+              <li><span class="kbd">B</span>: toggle scatter flight</li>
+              <li><span class="kbd">V</span>: cycle cinematic camera</li>
+              <li><span class="kbd">K</span>: cycle shape routes</li>
+              <li><span class="kbd">T</span>: rerun center text animation</li>
+              <li><span class="kbd">D</span>: manual direction flip (editor only)</li>
+            </ul>
+          </section>
+
+          <section class="card" id="export-playback">
+            <h3>export + playback workflow</h3>
+            <ul>
+              <li><code>save local</code> stores edits + triggers in local storage.</li>
+              <li><code>export json</code> writes your timeline + trigger config to file.</li>
+              <li>on the player page, import json and press start.</li>
+              <li>if no import is loaded, player uses default timeline after countdown.</li>
+            </ul>
+            <p class="footer-note">
+              export filename uses your active song label, so you can keep multiple versions cleanly.
+            </p>
+          </section>
+
+          <section class="card" id="troubleshooting">
+            <h3>troubleshooting quick hits</h3>
+            <ul>
+              <li>trigger not firing: lower cooldown, increase tolerance, confirm source (hz vs energy).</li>
+              <li>trigger firing too often: increase cooldown and switch from <code>enter</code> to directional mode.</li>
+              <li>no audio: click play/start button once to satisfy browser audio gesture rules.</li>
+              <li>editor 404 on deploy: ensure build emits <code>dist/editor.html</code> and Vercel output is <code>dist</code>.</li>
+            </ul>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

@@ -4011,38 +4011,53 @@ function updateAudioAnalysis(dt, t) {
         ? birdSystem.getRouteShapeState()
         : null;
 
-    ui.metrics.textContent =
-      `rms: ${rms.toFixed(4)}\n` +
-      `peak: ${peak.toFixed(4)}\n` +
-      `crest factor: ${crest.toFixed(2)}\n` +
-      `rms rot trigger: ${CFG.rmsRotateTrigger.toFixed(2)} (${rms >= CFG.rmsRotateTrigger ? "active" : "off"})\n` +
-      `crest y trigger: ${CFG.crestYRotateTrigger.toFixed(2)} (${crest >= CFG.crestYRotateTrigger ? "active" : "off"})\n` +
-      `${
-        reactiveRot
-          ? `bird z-rot: ${((reactiveRot.audioRotAmount * 180) / Math.PI).toFixed(2)} deg\nbird y-rot: ${((reactiveRot.crestYRotAmount * 180) / Math.PI).toFixed(2)} deg\nmiddle trig y-add: ${((reactiveRot.middlePeakYRotAmount * 180) / Math.PI).toFixed(2)} deg\n`
-          : ""
-      }` +
-      `loudness (dbfs): ${loudnessDb.toFixed(1)}\n` +
-      `zcr: ${zcrNorm.toFixed(4)}\n` +
-      `spectral centroid: ${Math.round(centroid)} hz\n` +
-      `spectral spread: ${Math.round(spread)} hz\n` +
-      `rolloff 85%: ${Math.round(rolloff)} hz\n` +
-      `spectral flatness: ${flatness.toFixed(4)}\n` +
-      `spectral flux: ${fluxNorm.toFixed(6)}\n` +
-      `onset threshold: ${onsetThreshold.toFixed(6)}\n` +
-      `bpm estimate: ${analysisState.bpm > 0 ? analysisState.bpm.toFixed(1) : "n/a"}\n` +
-      `dominant frequency: ${Math.round(dominantHz)} hz\n` +
-      `middle peak (top5 #3): ${Number.isFinite(middlePeakHz) ? Math.round(middlePeakHz) : "n/a"} hz\n` +
-      `trigger fire count (frame): ${triggerFireCount}\n` +
-      `trigger fire count (total): ${triggerState.stats.totalFired}\n` +
-      `trigger last action: ${triggerState.stats.lastActionLabel}\n` +
-      `${routeShapeState ? `route shape: ${routeShapeState.mode}\n` : ""}` +
-      `color mode: ${colorMode}\n` +
-      `${infectionProgress ? `infection progress: ${infectionProgress.infectedCount}/${infectionProgress.totalCount}\n` : ""}` +
-      `sub energy: ${subValue.toFixed(4)}\n` +
-      `layer index: ${layerIndex.toFixed(3)}\n` +
-      `band ratio bass/mid: ${(bandValues.bass / Math.max(1e-6, bandValues.mid)).toFixed(3)}\n` +
-      `top peaks: ${peakSummary}`;
+    const metricsLines = [
+      `rms: ${rms.toFixed(4)}`,
+      `peak: ${peak.toFixed(4)}`,
+      `crest factor: ${crest.toFixed(2)}`,
+      `rms rot trigger: ${CFG.rmsRotateTrigger.toFixed(2)} (${rms >= CFG.rmsRotateTrigger ? "active" : "off"})`,
+      `crest y trigger: ${CFG.crestYRotateTrigger.toFixed(2)} (${crest >= CFG.crestYRotateTrigger ? "active" : "off"})`,
+    ];
+    if (reactiveRot) {
+      metricsLines.push(
+        `bird z-rot: ${((reactiveRot.audioRotAmount * 180) / Math.PI).toFixed(2)} deg`,
+        `bird y-rot: ${((reactiveRot.crestYRotAmount * 180) / Math.PI).toFixed(2)} deg`,
+        `middle trig y-add: ${((reactiveRot.middlePeakYRotAmount * 180) / Math.PI).toFixed(2)} deg`,
+      );
+    }
+    metricsLines.push(
+      `loudness (dbfs): ${loudnessDb.toFixed(1)}`,
+      `zcr: ${zcrNorm.toFixed(4)}`,
+      `spectral centroid: ${Math.round(centroid)} hz`,
+      `spectral spread: ${Math.round(spread)} hz`,
+      `rolloff 85%: ${Math.round(rolloff)} hz`,
+      `spectral flatness: ${flatness.toFixed(4)}`,
+      `spectral flux: ${fluxNorm.toFixed(6)}`,
+      `onset threshold: ${onsetThreshold.toFixed(6)}`,
+      `bpm estimate: ${analysisState.bpm > 0 ? analysisState.bpm.toFixed(1) : "n/a"}`,
+      `dominant frequency: ${Math.round(dominantHz)} hz`,
+      `presence energy: ${(bandValues.presence || 0).toFixed(6)}`,
+      `middle peak (top5 #3): ${Number.isFinite(middlePeakHz) ? Math.round(middlePeakHz) : "n/a"} hz`,
+      `trigger fire count (frame): ${triggerFireCount}`,
+      `trigger fire count (total): ${triggerState.stats.totalFired}`,
+      `trigger last action: ${triggerState.stats.lastActionLabel}`,
+    );
+    if (routeShapeState) {
+      metricsLines.push(`route shape: ${routeShapeState.mode}`);
+    }
+    metricsLines.push(`color mode: ${colorMode}`);
+    if (infectionProgress) {
+      metricsLines.push(
+        `infection progress: ${infectionProgress.infectedCount}/${infectionProgress.totalCount}`,
+      );
+    }
+    metricsLines.push(
+      `sub energy: ${subValue.toFixed(4)}`,
+      `layer index: ${layerIndex.toFixed(3)}`,
+      `band ratio bass/mid: ${(bandValues.bass / Math.max(1e-6, bandValues.mid)).toFixed(3)}`,
+      `top peaks: ${peakSummary}`,
+    );
+    setAnalysisMetricsText(ui, metricsLines);
   }
 }
 
@@ -4099,6 +4114,30 @@ function drawSpectrum(ctx, canvas, freqDb, sampleRate) {
     ctx.fillStyle = `hsla(${hue}, 90%, 70%, 0.9)`;
     ctx.fillRect(x, h - barH - 1, bw, barH);
   }
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function setAnalysisMetricsText(ui, lines) {
+  if (!ui || !ui.metrics) return;
+  const html = lines
+    .map((line) => {
+      const important =
+        line.startsWith("dominant frequency:") ||
+        line.startsWith("presence energy:") ||
+        line.startsWith("top peaks:");
+      const safe = escapeHtml(line);
+      return important
+        ? `<span style="color:#8fe7ff;">${safe}</span>`
+        : safe;
+    })
+    .join("\n");
+  ui.metrics.innerHTML = html;
 }
 
 function updateBandRows(rows, bands) {

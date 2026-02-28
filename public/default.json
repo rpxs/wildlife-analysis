@@ -1563,5 +1563,31 @@
       "atMs": 185304,
       "key": "KeyB"
     }
+  ],
+  "triggers": [
+    {
+      "source": "dominant",
+      "hz": 1336,
+      "tolerance": 7,
+      "mode": "enter",
+      "action": "toggle_direction",
+      "cooldownMs": 120
+    },
+    {
+      "source": "dominant",
+      "hz": 47,
+      "tolerance": 4,
+      "mode": "enter_down",
+      "action": "color_change",
+      "cooldownMs": 120
+    },
+    {
+      "source": "middle_peak",
+      "hz": 270,
+      "tolerance": 3,
+      "mode": "cross_down",
+      "action": "middle_peak_y_rot",
+      "cooldownMs": 120
+    }
   ]
 }

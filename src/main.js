@@ -21,10 +21,25 @@ const EDITOR_IMPORT_BUTTON = document.querySelector("#editor-import-btn");
 const EDITOR_IMPORT_INPUT = document.querySelector("#editor-import-file");
 const EDITOR_STATUS = document.querySelector("#editor-status");
 const EDITOR_TIMELINE = document.querySelector("#editor-timeline");
+const EDITOR_TITLE_TEXT = document.querySelector("#editor-title-text");
+const EDITOR_SONG_UPLOAD_BUTTON = document.querySelector("#editor-song-upload-btn");
+const EDITOR_SONG_RESET_BUTTON = document.querySelector("#editor-song-reset-btn");
+const EDITOR_SONG_FILE_INPUT = document.querySelector("#editor-song-file");
+const EDITOR_SONG_NAME = document.querySelector("#editor-song-name");
+const EDITOR_TRIGGER_SOURCE = document.querySelector("#editor-trigger-source");
+const EDITOR_TRIGGER_HZ = document.querySelector("#editor-trigger-hz");
+const EDITOR_TRIGGER_TOLERANCE = document.querySelector("#editor-trigger-tolerance");
+const EDITOR_TRIGGER_MODE = document.querySelector("#editor-trigger-mode");
+const EDITOR_TRIGGER_ACTION = document.querySelector("#editor-trigger-action");
+const EDITOR_TRIGGER_COOLDOWN = document.querySelector("#editor-trigger-cooldown");
+const EDITOR_TRIGGER_ADD_BUTTON = document.querySelector("#editor-trigger-add-btn");
+const EDITOR_TRIGGER_LIST = document.querySelector("#editor-trigger-list");
 const PAGE_MODE = document.body?.dataset?.page === "editor" ? "editor" : "home";
 const IS_EDITOR = PAGE_MODE === "editor";
 const IS_HOME = !IS_EDITOR;
 const EDIT_STORAGE_KEY = "wildlife:shangri:edits:v1";
+const DEFAULT_SONG_SRC = "/shangri-la.mp3";
+const DEFAULT_SONG_LABEL = "shangri-la.mp3";
 
 let travelDirection = 1;
 let birdSystem = null;
@@ -60,10 +75,10 @@ const homeState = {
 const COLOR_MODES = ["infection", "family", "rainbow"];
 let colorModeIndex = 0;
 const audioState = {
-  flight: null,
   shangri: null,
-  flightVolumeCurrent: 0.25,
-  unlockArmed: false,
+  sourceLabel: DEFAULT_SONG_LABEL,
+  sourceType: "default",
+  objectUrl: null,
 };
 const analysisState = {
   context: null,
@@ -82,12 +97,66 @@ const analysisState = {
   initialized: false,
   ui: null,
   prevSubValue: 0,
-  was1336InRange: false,
-  prevDominantHz: NaN,
-  was47InRange: false,
-  prevMiddlePeakHz: NaN,
-  middlePeakBottomHits: 0,
   centerLoudnessDisplay: null,
+};
+const DEFAULT_FREQUENCY_TRIGGERS = [
+  {
+    source: "dominant",
+    hz: 1336,
+    tolerance: 7,
+    mode: "enter",
+    action: "toggle_direction",
+    cooldownMs: 120,
+  },
+  {
+    source: "dominant",
+    hz: 47,
+    tolerance: 4,
+    mode: "enter_down",
+    action: "color_change",
+    cooldownMs: 120,
+  },
+  {
+    source: "middle_peak",
+    hz: 270,
+    tolerance: 3,
+    mode: "cross_down",
+    action: "middle_peak_y_rot",
+    cooldownMs: 120,
+  },
+];
+const TRIGGER_ACTION_LABELS = {
+  toggle_direction: "toggle direction",
+  color_change: "color change",
+  toggle_lines: "toggle lines + reroute",
+  toggle_trees: "toggle trees",
+  toggle_scatter: "toggle scatter",
+  cycle_shape: "cycle shape",
+  cycle_camera: "cycle camera",
+  cycle_color_mode: "cycle color mode",
+  restart_text: "restart center text",
+  middle_peak_y_rot: "y-rotation pulse",
+};
+const TRIGGER_SOURCE_LABELS = {
+  dominant: "dominant hz",
+  middle_peak: "middle peak hz",
+  presence: "presence band energy",
+};
+const TRIGGER_MODE_LABELS = {
+  enter: "enter window",
+  enter_up: "enter window going up",
+  enter_down: "enter window going down",
+  cross_up: "cross up",
+  cross_down: "cross down",
+};
+const triggerState = {
+  nextId: 1,
+  items: [],
+  stats: {
+    totalFired: 0,
+    firedThisFrame: 0,
+    lastActionLabel: "none",
+  },
 };
 const ANALYSIS_BANDS = [
   { key: "sub", label: "sub", low: 20, high: 60 },
@@ -144,7 +213,7 @@ if (CAPTURE_BUTTON) {
 function setDirectionButtonLabel() {
   if (!DIRECTION_BUTTON) return;
   DIRECTION_BUTTON.textContent =
-    travelDirection === 1 ? "direction: CW" : "direction: CCW";
+    travelDirection === 1 ? "direction: cw" : "direction: ccw";
 }
 
 function toggleTravelDirection() {
@@ -234,6 +303,363 @@ function updateColorModeIndicator() {
 }
 
 updateColorModeIndicator();
+setFrequencyTriggers(createDefaultFrequencyTriggers());
+
+function createDefaultFrequencyTriggers() {
+  return DEFAULT_FREQUENCY_TRIGGERS.map((trigger) =>
+    normalizeFrequencyTrigger(trigger),
+  ).filter(Boolean);
+}
+
+function normalizeFrequencyTrigger(input) {
+  if (!input || typeof input !== "object") return null;
+
+  const source = ["dominant", "middle_peak", "presence"].includes(input.source)
+    ? input.source
+    : "dominant";
+  const mode = [
+    "enter",
+    "enter_up",
+    "enter_down",
+    "cross_up",
+    "cross_down",
+  ].includes(input.mode)
+    ? input.mode
+    : "enter";
+
+  const action = Object.prototype.hasOwnProperty.call(
+    TRIGGER_ACTION_LABELS,
+    input.action,
+  )
+    ? input.action
+    : "toggle_direction";
+
+  const thresholdInput = Number(
+    Object.prototype.hasOwnProperty.call(input, "hz") ? input.hz : input.threshold,
+  );
+  let hz = 0;
+  let tolerance = 0;
+  if (source === "presence") {
+    hz = clamp(thresholdInput, 0, 5);
+    tolerance = clamp(Number(input.tolerance ?? 0.01), 0.0001, 5);
+  } else {
+    hz = clamp(thresholdInput, 1, 22050);
+    tolerance = clamp(Number(input.tolerance ?? 7), 0.25, 2000);
+  }
+  const cooldownMs = clamp(Number(input.cooldownMs ?? 120), 0, 10000);
+
+  if (!Number.isFinite(hz) || !Number.isFinite(tolerance) || !Number.isFinite(cooldownMs)) {
+    return null;
+  }
+
+  return {
+    source,
+    mode,
+    action,
+    hz,
+    tolerance,
+    cooldownMs,
+  };
+}
+
+function resetFrequencyTriggerRuntime(trigger) {
+  trigger.runtime = {
+    prevHz: NaN,
+    wasInRange: false,
+    lastFireMs: -1,
+    fireCount: 0,
+  };
+}
+
+function setFrequencyTriggers(nextTriggers) {
+  const normalized = Array.isArray(nextTriggers)
+    ? nextTriggers.map((item) => normalizeFrequencyTrigger(item)).filter(Boolean)
+    : [];
+  triggerState.items = normalized.map((trigger) => {
+    const item = {
+      ...trigger,
+      id: triggerState.nextId++,
+    };
+    resetFrequencyTriggerRuntime(item);
+    return item;
+  });
+  if (triggerState.items.length <= 0) {
+    triggerState.items = createDefaultFrequencyTriggers().map((trigger) => {
+      const item = {
+        ...trigger,
+        id: triggerState.nextId++,
+      };
+      resetFrequencyTriggerRuntime(item);
+      return item;
+    });
+  }
+  renderEditorTriggerList();
+}
+
+function getFrequencyTriggerPayload() {
+  return triggerState.items.map((item) => ({
+    source: item.source,
+    hz: Number(item.hz.toFixed(3)),
+    tolerance: Number(item.tolerance.toFixed(3)),
+    mode: item.mode,
+    action: item.action,
+    cooldownMs: Math.round(item.cooldownMs),
+  }));
+}
+
+function resetAllFrequencyTriggerRuntime() {
+  for (let i = 0; i < triggerState.items.length; i++) {
+    resetFrequencyTriggerRuntime(triggerState.items[i]);
+  }
+  triggerState.stats.firedThisFrame = 0;
+}
+
+function getFrequencySourceValue(source, metrics) {
+  if (source === "middle_peak") {
+    return metrics.middlePeakHz;
+  }
+  if (source === "presence") {
+    return metrics.presenceEnergy;
+  }
+  return metrics.dominantHz;
+}
+
+function triggerActionFromFrequency(action) {
+  if (action === "toggle_direction") {
+    toggleTravelDirection();
+    return;
+  }
+  if (action === "color_change") {
+    triggerBirdColorChange();
+    return;
+  }
+  if (action === "toggle_lines") {
+    executeKeyAction("Space", "trigger");
+    return;
+  }
+  if (action === "toggle_trees") {
+    executeKeyAction("KeyJ", "trigger");
+    return;
+  }
+  if (action === "toggle_scatter") {
+    executeKeyAction("KeyB", "trigger");
+    return;
+  }
+  if (action === "cycle_shape") {
+    executeKeyAction("KeyK", "trigger");
+    return;
+  }
+  if (action === "cycle_camera") {
+    executeKeyAction("KeyV", "trigger");
+    return;
+  }
+  if (action === "cycle_color_mode") {
+    executeKeyAction("KeyH", "trigger");
+    return;
+  }
+  if (action === "restart_text") {
+    executeKeyAction("KeyT", "trigger");
+    return;
+  }
+  if (
+    action === "middle_peak_y_rot" &&
+    birdSystem &&
+    typeof birdSystem.triggerMiddlePeakYRotation === "function"
+  ) {
+    birdSystem.triggerMiddlePeakYRotation();
+  }
+}
+
+function evaluateFrequencyTriggers(metrics, nowMs) {
+  let firedThisFrame = 0;
+  for (let i = 0; i < triggerState.items.length; i++) {
+    const trigger = triggerState.items[i];
+    const runtime = trigger.runtime;
+    const currentHz = getFrequencySourceValue(trigger.source, metrics);
+    if (!Number.isFinite(currentHz)) {
+      runtime.prevHz = currentHz;
+      runtime.wasInRange = false;
+      continue;
+    }
+
+    const inRange = Math.abs(currentHz - trigger.hz) <= trigger.tolerance;
+    const prevHz = runtime.prevHz;
+    const goingUp = Number.isFinite(prevHz) && currentHz > prevHz;
+    const goingDown = Number.isFinite(prevHz) && currentHz < prevHz;
+    const crossUpThreshold = trigger.hz - trigger.tolerance;
+    const crossDownThreshold = trigger.hz + trigger.tolerance;
+    const crossedUp =
+      Number.isFinite(prevHz) &&
+      prevHz < crossUpThreshold &&
+      currentHz >= crossUpThreshold;
+    const crossedDown =
+      Number.isFinite(prevHz) &&
+      prevHz > crossDownThreshold &&
+      currentHz <= crossDownThreshold;
+
+    let shouldFire = false;
+    if (trigger.mode === "enter") {
+      shouldFire = inRange && !runtime.wasInRange;
+    } else if (trigger.mode === "enter_up") {
+      shouldFire = inRange && !runtime.wasInRange && goingUp;
+    } else if (trigger.mode === "enter_down") {
+      shouldFire = inRange && !runtime.wasInRange && goingDown;
+    } else if (trigger.mode === "cross_up") {
+      shouldFire = crossedUp;
+    } else if (trigger.mode === "cross_down") {
+      shouldFire = crossedDown;
+    }
+
+    if (
+      shouldFire &&
+      (runtime.lastFireMs < 0 || nowMs - runtime.lastFireMs >= trigger.cooldownMs)
+    ) {
+      runtime.lastFireMs = nowMs;
+      runtime.fireCount += 1;
+      triggerActionFromFrequency(trigger.action);
+      firedThisFrame += 1;
+      triggerState.stats.totalFired += 1;
+      triggerState.stats.lastActionLabel = TRIGGER_ACTION_LABELS[trigger.action] || trigger.action;
+    }
+
+    runtime.prevHz = currentHz;
+    runtime.wasInRange = inRange;
+  }
+  triggerState.stats.firedThisFrame = firedThisFrame;
+  return firedThisFrame;
+}
+
+function describeFrequencyTrigger(trigger) {
+  const source = TRIGGER_SOURCE_LABELS[trigger.source] || trigger.source;
+  const mode = TRIGGER_MODE_LABELS[trigger.mode] || trigger.mode;
+  const action = TRIGGER_ACTION_LABELS[trigger.action] || trigger.action;
+  if (trigger.source === "presence") {
+    return `${source} ${mode} @ ${Number(trigger.hz).toFixed(4)} ±${Number(trigger.tolerance).toFixed(4)} -> ${action}`;
+  }
+  return `${source} ${mode} @ ${Number(trigger.hz).toFixed(1)}hz ±${Number(trigger.tolerance).toFixed(1)} -> ${action}`;
+}
+
+function syncTriggerInputUiForSource() {
+  if (!EDITOR_TRIGGER_SOURCE || !EDITOR_TRIGGER_HZ || !EDITOR_TRIGGER_TOLERANCE) return;
+  const source = EDITOR_TRIGGER_SOURCE.value;
+  if (source === "presence") {
+    EDITOR_TRIGGER_HZ.min = "0";
+    EDITOR_TRIGGER_HZ.max = "5";
+    EDITOR_TRIGGER_HZ.step = "0.0001";
+    const hzValue = Number(EDITOR_TRIGGER_HZ.value);
+    if (!Number.isFinite(hzValue) || hzValue < 0 || hzValue > 5) {
+      EDITOR_TRIGGER_HZ.value = "0.0400";
+    }
+
+    EDITOR_TRIGGER_TOLERANCE.min = "0.0001";
+    EDITOR_TRIGGER_TOLERANCE.max = "5";
+    EDITOR_TRIGGER_TOLERANCE.step = "0.0001";
+    const tolValue = Number(EDITOR_TRIGGER_TOLERANCE.value);
+    if (!Number.isFinite(tolValue) || tolValue < 0.0001 || tolValue > 5) {
+      EDITOR_TRIGGER_TOLERANCE.value = "0.0100";
+    }
+    return;
+  }
+
+  EDITOR_TRIGGER_HZ.min = "1";
+  EDITOR_TRIGGER_HZ.max = "22050";
+  EDITOR_TRIGGER_HZ.step = "1";
+  const hzValue = Number(EDITOR_TRIGGER_HZ.value);
+  if (!Number.isFinite(hzValue) || hzValue < 1 || hzValue > 22050) {
+    EDITOR_TRIGGER_HZ.value = "1336";
+  }
+
+  EDITOR_TRIGGER_TOLERANCE.min = "0.5";
+  EDITOR_TRIGGER_TOLERANCE.max = "2000";
+  EDITOR_TRIGGER_TOLERANCE.step = "0.5";
+  const tolValue = Number(EDITOR_TRIGGER_TOLERANCE.value);
+  if (!Number.isFinite(tolValue) || tolValue < 0.5 || tolValue > 2000) {
+    EDITOR_TRIGGER_TOLERANCE.value = "7";
+  }
+}
+
+function renderEditorTriggerList() {
+  if (!IS_EDITOR || !EDITOR_TRIGGER_LIST) return;
+  EDITOR_TRIGGER_LIST.innerHTML = "";
+
+  if (triggerState.items.length <= 0) {
+    const empty = document.createElement("div");
+    empty.className = "trigger-empty";
+    empty.textContent = "no triggers yet.";
+    EDITOR_TRIGGER_LIST.appendChild(empty);
+    return;
+  }
+
+  for (let i = 0; i < triggerState.items.length; i++) {
+    const trigger = triggerState.items[i];
+    const wrap = document.createElement("div");
+    wrap.className = "trigger-item";
+
+    const head = document.createElement("div");
+    head.className = "trigger-item-head";
+
+    const label = document.createElement("div");
+    label.textContent = describeFrequencyTrigger(trigger);
+    head.appendChild(label);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.textContent = "remove";
+    removeBtn.addEventListener("click", () => {
+      triggerState.items = triggerState.items.filter((item) => item.id !== trigger.id);
+      renderEditorTriggerList();
+      updateEditorStatus("trigger removed");
+    });
+    head.appendChild(removeBtn);
+    wrap.appendChild(head);
+
+    const meta = document.createElement("div");
+    meta.className = "trigger-item-meta";
+    meta.textContent = `cooldown ${Math.round(trigger.cooldownMs)}ms | fired ${trigger.runtime.fireCount}`;
+    wrap.appendChild(meta);
+    EDITOR_TRIGGER_LIST.appendChild(wrap);
+  }
+}
+
+function updateSongUi() {
+  const sourceLabel =
+    audioState.sourceType === "uploaded"
+      ? `${audioState.sourceLabel} (uploaded)`
+      : `${audioState.sourceLabel} (default)`;
+  if (EDITOR_SONG_NAME) {
+    EDITOR_SONG_NAME.textContent = `song: ${sourceLabel}`;
+  }
+  if (EDITOR_TITLE_TEXT) {
+    EDITOR_TITLE_TEXT.textContent = `editor | ${audioState.sourceLabel}`;
+  }
+  if (analysisState.ui?.title) {
+    analysisState.ui.title.textContent = `audio analysis | ${audioState.sourceLabel}`;
+  }
+}
+
+function clearUploadedSongObjectUrl() {
+  if (audioState.objectUrl) {
+    URL.revokeObjectURL(audioState.objectUrl);
+    audioState.objectUrl = null;
+  }
+}
+
+function setSongSource(src, label, sourceType = "default", objectUrl = null) {
+  if (!audioState.shangri) return;
+  audioState.shangri.pause();
+  audioState.shangri.currentTime = 0;
+  audioState.shangri.src = src;
+  audioState.shangri.load();
+
+  clearUploadedSongObjectUrl();
+  if (sourceType === "uploaded") {
+    audioState.objectUrl = objectUrl;
+  }
+  audioState.sourceType = sourceType;
+  audioState.sourceLabel = label;
+  resetAllFrequencyTriggerRuntime();
+  updateSongUi();
+}
 
 function isTextInputTarget(target) {
   const el = target;
@@ -300,6 +726,7 @@ function initHomePlaybackUI() {
         const normalized = normalizeEditsPayload(payload);
         homeState.hasCustomEdits = true;
         cancelHomeDefaultAutoload();
+        setFrequencyTriggers(normalized.triggers);
         startEditPlayback(normalized.events, false);
         if (homeState.startPressed) {
           const ok = await tryStartHomePlayback(true);
@@ -324,11 +751,12 @@ function initHomePlaybackUI() {
       if (homeState.forceDefaultOnly) return;
       const loaded = loadEditsFromLocalStorage();
       if (!loaded || loaded.events.length === 0) {
-        setHomePlaybackStatus("no saved edits in localStorage");
+        setHomePlaybackStatus("no saved edits in local storage");
         return;
       }
       homeState.hasCustomEdits = true;
       cancelHomeDefaultAutoload();
+      setFrequencyTriggers(loaded.triggers);
       startEditPlayback(loaded.events, false);
       if (homeState.startPressed) {
         const ok = await tryStartHomePlayback(true);
@@ -496,6 +924,7 @@ async function loadDefaultEditsForHome(autoplay = true) {
       setHomePlaybackStatus("default.json has no edits");
       return;
     }
+    setFrequencyTriggers(normalized.triggers);
     startEditPlayback(normalized.events, autoplay);
     if (autoplay) {
       setHomePlaybackStatus(
@@ -522,6 +951,29 @@ async function tryStartHomePlayback(reset = true) {
 }
 
 function initEditorUI() {
+  updateSongUi();
+
+  if (EDITOR_SONG_UPLOAD_BUTTON && EDITOR_SONG_FILE_INPUT) {
+    EDITOR_SONG_UPLOAD_BUTTON.addEventListener("click", () => {
+      EDITOR_SONG_FILE_INPUT.click();
+    });
+    EDITOR_SONG_FILE_INPUT.addEventListener("change", async () => {
+      const file = EDITOR_SONG_FILE_INPUT.files?.[0];
+      if (!file) return;
+      const objectUrl = URL.createObjectURL(file);
+      setSongSource(objectUrl, file.name, "uploaded", objectUrl);
+      updateEditorStatus(`song loaded: ${file.name}`);
+      EDITOR_SONG_FILE_INPUT.value = "";
+    });
+  }
+
+  if (EDITOR_SONG_RESET_BUTTON) {
+    EDITOR_SONG_RESET_BUTTON.addEventListener("click", () => {
+      setSongSource(DEFAULT_SONG_SRC, DEFAULT_SONG_LABEL, "default");
+      updateEditorStatus("using default song");
+    });
+  }
+
   if (EDITOR_PLAY_BUTTON) {
     EDITOR_PLAY_BUTTON.addEventListener("click", () => {
       void playShangriLa(true);
@@ -550,7 +1002,7 @@ function initEditorUI() {
   if (EDITOR_SAVE_LOCAL_BUTTON) {
     EDITOR_SAVE_LOCAL_BUTTON.addEventListener("click", () => {
       saveEditsToLocalStorage(editState.events);
-      updateEditorStatus("saved to localStorage");
+      updateEditorStatus("saved to local storage");
     });
   }
 
@@ -562,6 +1014,11 @@ function initEditorUI() {
         return;
       }
       editState.events = loaded.events.slice();
+      if (Array.isArray(loaded.triggers) && loaded.triggers.length > 0) {
+        setFrequencyTriggers(loaded.triggers);
+      } else {
+        setFrequencyTriggers(createDefaultFrequencyTriggers());
+      }
       renderEditorTimeline();
       updateEditorStatus(`loaded ${editState.events.length} edits`);
     });
@@ -585,6 +1042,7 @@ function initEditorUI() {
         const payload = await readJsonFile(file);
         const normalized = normalizeEditsPayload(payload);
         editState.events = normalized.events.slice();
+        setFrequencyTriggers(normalized.triggers);
         renderEditorTimeline();
         updateEditorStatus(
           `imported ${normalized.events.length} edits from ${file.name}`,
@@ -598,7 +1056,46 @@ function initEditorUI() {
     });
   }
 
+  if (
+    EDITOR_TRIGGER_SOURCE &&
+    EDITOR_TRIGGER_HZ &&
+    EDITOR_TRIGGER_TOLERANCE &&
+    EDITOR_TRIGGER_MODE &&
+    EDITOR_TRIGGER_ACTION &&
+    EDITOR_TRIGGER_COOLDOWN &&
+    EDITOR_TRIGGER_ADD_BUTTON
+  ) {
+    EDITOR_TRIGGER_SOURCE.addEventListener("change", () => {
+      syncTriggerInputUiForSource();
+    });
+    syncTriggerInputUiForSource();
+
+    EDITOR_TRIGGER_ADD_BUTTON.addEventListener("click", () => {
+      const candidate = normalizeFrequencyTrigger({
+        source: EDITOR_TRIGGER_SOURCE.value,
+        hz: Number(EDITOR_TRIGGER_HZ.value),
+        tolerance: Number(EDITOR_TRIGGER_TOLERANCE.value),
+        mode: EDITOR_TRIGGER_MODE.value,
+        action: EDITOR_TRIGGER_ACTION.value,
+        cooldownMs: Number(EDITOR_TRIGGER_COOLDOWN.value),
+      });
+      if (!candidate) {
+        updateEditorStatus("invalid trigger settings");
+        return;
+      }
+      const trigger = {
+        ...candidate,
+        id: triggerState.nextId++,
+      };
+      resetFrequencyTriggerRuntime(trigger);
+      triggerState.items.push(trigger);
+      renderEditorTriggerList();
+      updateEditorStatus("trigger added");
+    });
+  }
+
   setEditorRecordButtonLabel();
+  renderEditorTriggerList();
   renderEditorTimeline();
   updateEditorStatus("ready");
 }
@@ -647,7 +1144,7 @@ function updateEditorStatus(extra = "") {
   const rec = editState.recording ? "recording" : "idle";
   const play = song && !song.paused && !song.ended ? "playing" : "stopped";
   EDITOR_STATUS.textContent =
-    `audio ${play} | ${rec} | edits ${editState.events.length} | t ${formatTimelineTimeMs(nowMs)}` +
+    `audio ${play} | ${rec} | edits ${editState.events.length} | triggers ${triggerState.items.length} | song ${audioState.sourceLabel} | t ${formatTimelineTimeMs(nowMs)}` +
     (extra ? ` | ${extra}` : "");
 }
 
@@ -685,22 +1182,66 @@ function normalizeEditsPayload(payload) {
     });
   }
   events.sort((a, b) => a.atMs - b.atMs);
+  const triggerListRaw = Array.isArray(payload?.triggers) ? payload.triggers : [];
+  const triggers =
+    triggerListRaw.length > 0
+      ? triggerListRaw
+          .map((trigger) => normalizeFrequencyTrigger(trigger))
+          .filter(Boolean)
+      : createDefaultFrequencyTriggers();
+  const audio = normalizeAudioMeta(payload?.audio);
   return {
     version: 1,
-    audio: "/shangri-la.mp3",
+    audio,
     events,
+    triggers,
   };
 }
 
-function makeEditsPayload(events) {
+function normalizeAudioMeta(audio) {
+  if (typeof audio === "string") {
+    return {
+      sourceType: "default",
+      label: audio.split("/").pop() || DEFAULT_SONG_LABEL,
+      src: audio,
+    };
+  }
+  if (audio && typeof audio === "object") {
+    const sourceType = audio.sourceType === "uploaded" ? "uploaded" : "default";
+    const label =
+      typeof audio.label === "string" && audio.label.trim()
+        ? audio.label.trim()
+        : DEFAULT_SONG_LABEL;
+    const src =
+      sourceType === "default" && typeof audio.src === "string" && audio.src.trim()
+        ? audio.src.trim()
+        : DEFAULT_SONG_SRC;
+    return { sourceType, label, src };
+  }
+  return {
+    sourceType: "default",
+    label: DEFAULT_SONG_LABEL,
+    src: DEFAULT_SONG_SRC,
+  };
+}
+
+function makeEditsPayload(events, triggers = getFrequencyTriggerPayload()) {
   return {
     version: 1,
-    audio: "/shangri-la.mp3",
+    audio: {
+      sourceType: audioState.sourceType,
+      label: audioState.sourceLabel,
+      src: audioState.sourceType === "default" ? DEFAULT_SONG_SRC : null,
+    },
     createdAt: new Date().toISOString(),
     events: events
       .slice()
       .sort((a, b) => a.atMs - b.atMs)
       .map((e) => ({ atMs: Math.max(0, Math.round(e.atMs)), key: e.key })),
+    triggers: triggers
+      .slice()
+      .map((trigger) => normalizeFrequencyTrigger(trigger))
+      .filter(Boolean),
   };
 }
 
@@ -709,8 +1250,8 @@ async function readJsonFile(file) {
   return JSON.parse(text);
 }
 
-function saveEditsToLocalStorage(events) {
-  const payload = makeEditsPayload(events);
+function saveEditsToLocalStorage(events, triggers = getFrequencyTriggerPayload()) {
+  const payload = makeEditsPayload(events, triggers);
   localStorage.setItem(EDIT_STORAGE_KEY, JSON.stringify(payload));
 }
 
@@ -726,20 +1267,32 @@ function loadEditsFromLocalStorage() {
   }
 }
 
-function exportEditsJson(events) {
-  const payload = makeEditsPayload(events);
+function exportEditsJson(events, triggers = getFrequencyTriggerPayload()) {
+  const payload = makeEditsPayload(events, triggers);
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
   });
   const stamp = formatCaptureStamp(new Date());
+  const songStem = sanitizeFileStem(audioState.sourceLabel, "audio");
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `shangri-edits-${stamp}.json`;
+  a.download = `${songStem}-edits-${stamp}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function sanitizeFileStem(label, fallback = "audio") {
+  const raw = typeof label === "string" ? label.trim() : "";
+  if (!raw) return fallback;
+  const withoutExt = raw.replace(/\.[a-z0-9]{2,5}$/i, "");
+  const stem = withoutExt
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return stem || fallback;
 }
 
 function startEditPlayback(events, autoplay = true) {
@@ -1069,9 +1622,6 @@ const CFG = {
   lineColor: 0xffffff,
   lineOpacity: 0.2,
   lineFraction: 0.25,
-  flightMinVolume: 0.1,
-  flightMaxVolume: 0.25,
-  flightVolumeLerp: 0.08,
   directionTriggerHz: 1336,
   directionTriggerToleranceHz: 7,
   subColorTriggerThreshold: 0.04,
@@ -1227,7 +1777,6 @@ async function boot() {
     }
     birds.update(dt, t, camera);
     intro.update(t);
-    updateFlightVolume();
     updateAudioAnalysis(dt, t);
     updateEditPlayback();
     updateEditorStatus();
@@ -2584,6 +3133,20 @@ function makeInstancedBillboards({ texture, rects, count }) {
     mat.uniforms.uTint.value.set(1, 1, 1);
   }
 
+  function resetBirdColors() {
+    for (let i = 0; i < count; i++) {
+      tintRgb[i * 3 + 0] = 1;
+      tintRgb[i * 3 + 1] = 1;
+      tintRgb[i * 3 + 2] = 1;
+    }
+    infectionMask.fill(0);
+    infectedIndices.length = 0;
+    infectionState.infectedCount = 0;
+    infectionState.hue = Math.random();
+    tintAttr.needsUpdate = true;
+    mat.uniforms.uTint.value.set(1, 1, 1);
+  }
+
   return {
     mesh,
     lines,
@@ -2601,6 +3164,7 @@ function makeInstancedBillboards({ texture, rects, count }) {
     randomizePerBirdRainbowColors,
     randomizePerBirdSingleHueFamilyShades,
     advanceInfectionSpread,
+    resetBirdColors,
     setAudioReactiveRotation,
     triggerMiddlePeakYRotation,
     getAudioReactiveRotation: () => ({
@@ -2949,15 +3513,6 @@ function easeInOutCubic(t) {
 }
 
 function setupAudio() {
-  if (!audioState.flight) {
-    const flight = new Audio("/flight.mp3");
-    flight.loop = true;
-    flight.preload = "auto";
-    flight.volume = CFG.flightMinVolume;
-    audioState.flightVolumeCurrent = CFG.flightMinVolume;
-    audioState.flight = flight;
-  }
-
   if (!audioState.shangri) {
     const shangri = new Audio("/shangri-la.mp3");
     shangri.preload = "auto";
@@ -2965,64 +3520,20 @@ function setupAudio() {
     shangri.volume = 1.0;
     audioState.shangri = shangri;
   }
-
-  void tryStartFlight();
-}
-
-async function tryStartFlight() {
-  if (!audioState.flight) return;
-  try {
-    await audioState.flight.play();
-  } catch {
-    armFlightUnlock();
-  }
-}
-
-function armFlightUnlock() {
-  if (audioState.unlockArmed) return;
-  audioState.unlockArmed = true;
-
-  const unlock = async () => {
-    if (!audioState.flight) return;
-    try {
-      await audioState.flight.play();
-      cleanup();
-    } catch {
-      // Keep listeners until user interaction succeeds.
-    }
-  };
-
-  const cleanup = () => {
-    audioState.unlockArmed = false;
-    window.removeEventListener("pointerdown", unlock);
-    window.removeEventListener("keydown", unlock);
-  };
-
-  window.addEventListener("pointerdown", unlock);
-  window.addEventListener("keydown", unlock);
-}
-
-function updateFlightVolume() {
-  if (!audioState.flight) return;
-
-  const dist = camera.position.distanceTo(controls.target);
-  const range = Math.max(0.001, controls.maxDistance - controls.minDistance);
-  const nearFactor = clamp01((controls.maxDistance - dist) / range);
-  const targetVolume = lerp(
-    CFG.flightMinVolume,
-    CFG.flightMaxVolume,
-    nearFactor,
-  );
-
-  audioState.flightVolumeCurrent +=
-    (targetVolume - audioState.flightVolumeCurrent) * CFG.flightVolumeLerp;
-  audioState.flight.volume = audioState.flightVolumeCurrent;
 }
 
 async function playShangriLa(reset = true) {
   if (!audioState.shangri) return false;
   await ensureAudioAnalysisGraph();
   if (reset) {
+    resetAllFrequencyTriggerRuntime();
+    analysisState.prevSubValue = 0;
+    if (birdSystem && typeof birdSystem.resetBirdColors === "function") {
+      birdSystem.resetBirdColors();
+    }
+    if (IS_EDITOR) {
+      renderEditorTriggerList();
+    }
     audioState.shangri.currentTime = 0;
   }
   try {
@@ -3126,7 +3637,7 @@ function setupAudioAnalysisUI() {
     row.appendChild(track);
 
     const value = document.createElement("div");
-    value.textContent = "0.00";
+    value.textContent = "0.000000";
     value.style.textAlign = "right";
     row.appendChild(value);
 
@@ -3146,6 +3657,7 @@ function setupAudioAnalysisUI() {
   ensureCenterLoudnessDisplay();
 
   analysisState.ui = {
+    title,
     root,
     status,
     waveCanvas,
@@ -3273,11 +3785,7 @@ async function ensureAudioAnalysisGraph() {
   analysisState.onsetTimes = [];
   analysisState.bpm = 0;
   analysisState.prevSubValue = 0;
-  analysisState.was1336InRange = false;
-  analysisState.prevDominantHz = NaN;
-  analysisState.was47InRange = false;
-  analysisState.prevMiddlePeakHz = NaN;
-  analysisState.middlePeakBottomHits = 0;
+  resetAllFrequencyTriggerRuntime();
   analysisState.initialized = true;
 }
 
@@ -3409,26 +3917,6 @@ function updateAudioAnalysis(dt, t) {
     bandValues[band.key] = band.value;
   }
 
-  const in1336Window =
-    Math.abs(dominantHz - CFG.directionTriggerHz) <=
-    CFG.directionTriggerToleranceHz;
-  if (in1336Window && !analysisState.was1336InRange) {
-    toggleTravelDirection();
-  }
-  analysisState.was1336InRange = in1336Window;
-
-  const in47Window =
-    Math.abs(dominantHz - CFG.perBirdColorTriggerHz) <=
-    CFG.perBirdColorTriggerToleranceHz;
-  const isDescendingAt47 =
-    Number.isFinite(analysisState.prevDominantHz) &&
-    dominantHz < analysisState.prevDominantHz;
-  if (in47Window && isDescendingAt47 && !analysisState.was47InRange) {
-    triggerBirdColorChange();
-  }
-  analysisState.was47InRange = in47Window;
-  analysisState.prevDominantHz = dominantHz;
-
   const subValue = bandValues.sub || 0;
   if (
     analysisState.prevSubValue < CFG.subColorTriggerThreshold &&
@@ -3476,21 +3964,14 @@ function updateAudioAnalysis(dt, t) {
   analysisState.peaks = peaks.slice(0, 5);
   const middlePeakHz =
     analysisState.peaks.length >= 3 ? analysisState.peaks[2].freq : NaN;
-  const middlePeakBottomTriggered =
-    Number.isFinite(middlePeakHz) &&
-    Number.isFinite(analysisState.prevMiddlePeakHz) &&
-    analysisState.prevMiddlePeakHz > CFG.middlePeakBottomTriggerHz &&
-    middlePeakHz <= CFG.middlePeakBottomTriggerHz;
-  if (middlePeakBottomTriggered) {
-    analysisState.middlePeakBottomHits += 1;
-    if (
-      birdSystem &&
-      typeof birdSystem.triggerMiddlePeakYRotation === "function"
-    ) {
-      birdSystem.triggerMiddlePeakYRotation();
-    }
+  const nowMs = Math.max(0, Math.round((song.currentTime || 0) * 1000));
+  const triggerFireCount = evaluateFrequencyTriggers(
+    { dominantHz, middlePeakHz, presenceEnergy: bandValues.presence || 0 },
+    nowMs,
+  );
+  if (triggerFireCount > 0 && IS_EDITOR) {
+    renderEditorTriggerList();
   }
-  analysisState.prevMiddlePeakHz = middlePeakHz;
 
   drawWaveform(ui.waveCtx, ui.waveCanvas, analysisState.timeData);
   drawSpectrum(ui.specCtx, ui.specCanvas, analysisState.freqDb, sampleRate);
@@ -3512,7 +3993,7 @@ function updateAudioAnalysis(dt, t) {
 
     const peakSummary =
       analysisState.peaks.length > 0
-        ? analysisState.peaks.map((p) => `${Math.round(p.freq)}Hz`).join(", ")
+        ? analysisState.peaks.map((p) => `${Math.round(p.freq)}hz`).join(", ")
         : "n/a";
     const colorMode = getColorMode();
     const infectionProgress =
@@ -3541,21 +4022,21 @@ function updateAudioAnalysis(dt, t) {
           ? `bird z-rot: ${((reactiveRot.audioRotAmount * 180) / Math.PI).toFixed(2)} deg\nbird y-rot: ${((reactiveRot.crestYRotAmount * 180) / Math.PI).toFixed(2)} deg\nmiddle trig y-add: ${((reactiveRot.middlePeakYRotAmount * 180) / Math.PI).toFixed(2)} deg\n`
           : ""
       }` +
-      `loudness (dBFS): ${loudnessDb.toFixed(1)}\n` +
+      `loudness (dbfs): ${loudnessDb.toFixed(1)}\n` +
       `zcr: ${zcrNorm.toFixed(4)}\n` +
-      `spectral centroid: ${Math.round(centroid)} Hz\n` +
-      `spectral spread: ${Math.round(spread)} Hz\n` +
-      `rolloff 85%: ${Math.round(rolloff)} Hz\n` +
+      `spectral centroid: ${Math.round(centroid)} hz\n` +
+      `spectral spread: ${Math.round(spread)} hz\n` +
+      `rolloff 85%: ${Math.round(rolloff)} hz\n` +
       `spectral flatness: ${flatness.toFixed(4)}\n` +
       `spectral flux: ${fluxNorm.toFixed(6)}\n` +
       `onset threshold: ${onsetThreshold.toFixed(6)}\n` +
       `bpm estimate: ${analysisState.bpm > 0 ? analysisState.bpm.toFixed(1) : "n/a"}\n` +
-      `dominant frequency: ${Math.round(dominantHz)} Hz\n` +
-      `middle peak (top5 #3): ${Number.isFinite(middlePeakHz) ? Math.round(middlePeakHz) : "n/a"} Hz\n` +
-      `middle 270Hz bottom trigger: ${middlePeakBottomTriggered ? "hit" : "off"} (${analysisState.middlePeakBottomHits})\n` +
+      `dominant frequency: ${Math.round(dominantHz)} hz\n` +
+      `middle peak (top5 #3): ${Number.isFinite(middlePeakHz) ? Math.round(middlePeakHz) : "n/a"} hz\n` +
+      `trigger fire count (frame): ${triggerFireCount}\n` +
+      `trigger fire count (total): ${triggerState.stats.totalFired}\n` +
+      `trigger last action: ${triggerState.stats.lastActionLabel}\n` +
       `${routeShapeState ? `route shape: ${routeShapeState.mode}\n` : ""}` +
-      `1336 trigger window: ${in1336Window ? "hit" : "off"}\n` +
-      `47Hz down-trigger window: ${in47Window ? (isDescendingAt47 ? "descending hit" : "in-range") : "off"}\n` +
       `color mode: ${colorMode}\n` +
       `${infectionProgress ? `infection progress: ${infectionProgress.infectedCount}/${infectionProgress.totalCount}\n` : ""}` +
       `sub energy: ${subValue.toFixed(4)}\n` +
@@ -3629,7 +4110,7 @@ function updateBandRows(rows, bands) {
     const v = bands[i].value * scale;
     const pct = clamp01(Math.sqrt(v)) * 100;
     rows[i].fill.style.width = `${pct.toFixed(1)}%`;
-    rows[i].value.textContent = bands[i].value.toFixed(3);
+    rows[i].value.textContent = bands[i].value.toFixed(6);
   }
 }
 
@@ -3649,7 +4130,7 @@ function hideBandRows() {
   if (!ui) return;
   for (const row of ui.bandRows) {
     row.fill.style.width = "0%";
-    row.value.textContent = "0.000";
+    row.value.textContent = "0.000000";
   }
 }
 
